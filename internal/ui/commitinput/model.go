@@ -24,16 +24,33 @@ type Model struct {
 // New creates a new commit input model
 func New() Model {
 	ti := textinput.New()
-	ti.Placeholder = "Message (press Enter to commit)"
+	ti.Placeholder = "Enter commit message..."
 	ti.CharLimit = 200
 	ti.Width = 40
+	// Style the placeholder
+	ti.PlaceholderStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Italic(true)
+	// Style the text cursor
+	ti.Cursor.Style = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214"))
+	// Style the prompt
+	ti.PromptStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("78")).
+		Bold(true)
+	ti.Prompt = " "
 
 	return Model{
-		input:            ti,
-		containerStyle:   lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238")).Padding(0, 1),
-		labelStyle:       lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Bold(true),
+		input: ti,
+		containerStyle: lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("238")).
+			Padding(0, 1),
+		labelStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("78")).
+			Bold(true),
 		inputStyle:       lipgloss.NewStyle(),
-		placeholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("241")),
+		placeholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true),
 	}
 }
 
@@ -99,9 +116,23 @@ func (m Model) View() string {
 
 	var b strings.Builder
 
-	// Commit icon and label
+	// Commit icon and label with focus indicator
 	icon := "" // Git commit icon
-	label := m.labelStyle.Render(icon + " Commit")
+	var label string
+	if m.focused {
+		// Highlight when focused
+		focusedIcon := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Bold(true).
+			Render(icon)
+		focusedLabel := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Bold(true).
+			Render(" Commit")
+		label = focusedIcon + focusedLabel
+	} else {
+		label = m.labelStyle.Render(icon + " Commit")
+	}
 
 	b.WriteString(label)
 	b.WriteString("\n")
@@ -109,10 +140,17 @@ func (m Model) View() string {
 	// Input field
 	inputView := m.input.View()
 
-	// Apply container style
+	// Apply container style with dynamic border color based on focus
+	containerStyle := m.containerStyle
+	if m.focused {
+		containerStyle = containerStyle.
+			BorderForeground(lipgloss.Color("214")).
+			BorderStyle(lipgloss.RoundedBorder())
+	}
+
 	content := b.String() + inputView
 
-	return m.containerStyle.Width(m.width - 2).Render(content)
+	return containerStyle.Width(m.width - 2).Render(content)
 }
 
 // Height returns the height of the component

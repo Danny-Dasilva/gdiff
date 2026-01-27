@@ -50,8 +50,10 @@ type Model struct {
 	focusedStyle  lipgloss.Style
 	headerStyle   lipgloss.Style
 	countStyle    lipgloss.Style
-	iconStyle     lipgloss.Style
 	statusStyles  map[diff.FileStatus]lipgloss.Style
+
+	// File type icon styles (color-coded)
+	iconStyles map[string]lipgloss.Style
 }
 
 // New creates a new file tree model
@@ -62,15 +64,52 @@ func New(keyMap types.KeyMap) Model {
 		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("238")),
 		focusedStyle:  lipgloss.NewStyle().Background(lipgloss.Color("62")),
 		headerStyle:   lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("252")),
-		countStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
-		iconStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("246")),
+		countStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Italic(true),
 		statusStyles: map[diff.FileStatus]lipgloss.Style{
-			diff.StatusModified:  lipgloss.NewStyle().Foreground(lipgloss.Color("214")), // Orange
-			diff.StatusAdded:     lipgloss.NewStyle().Foreground(lipgloss.Color("78")),  // Green
-			diff.StatusDeleted:   lipgloss.NewStyle().Foreground(lipgloss.Color("204")), // Red
-			diff.StatusRenamed:   lipgloss.NewStyle().Foreground(lipgloss.Color("141")), // Purple
-			diff.StatusUntracked: lipgloss.NewStyle().Foreground(lipgloss.Color("78")),  // Green (new file)
-			diff.StatusUnmerged:  lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			diff.StatusModified:  lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true), // Orange
+			diff.StatusAdded:     lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true),  // Green
+			diff.StatusDeleted:   lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true), // Red
+			diff.StatusRenamed:   lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Bold(true), // Purple
+			diff.StatusUntracked: lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true),  // Green (new file)
+			diff.StatusUnmerged:  lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true), // Orange
+		},
+		// Color-coded file type icons
+		iconStyles: map[string]lipgloss.Style{
+			"go":         lipgloss.NewStyle().Foreground(lipgloss.Color("81")),  // Cyan/Go blue
+			"js":         lipgloss.NewStyle().Foreground(lipgloss.Color("226")), // Yellow
+			"ts":         lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
+			"py":         lipgloss.NewStyle().Foreground(lipgloss.Color("220")), // Yellow/Gold
+			"rust":       lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			"ruby":       lipgloss.NewStyle().Foreground(lipgloss.Color("196")), // Red
+			"java":       lipgloss.NewStyle().Foreground(lipgloss.Color("166")), // Orange/Red
+			"c":          lipgloss.NewStyle().Foreground(lipgloss.Color("75")),  // Blue
+			"cpp":        lipgloss.NewStyle().Foreground(lipgloss.Color("204")), // Pink
+			"json":       lipgloss.NewStyle().Foreground(lipgloss.Color("185")), // Yellow
+			"yaml":       lipgloss.NewStyle().Foreground(lipgloss.Color("167")), // Red/Orange
+			"toml":       lipgloss.NewStyle().Foreground(lipgloss.Color("209")), // Orange
+			"md":         lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
+			"html":       lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			"css":        lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
+			"shell":      lipgloss.NewStyle().Foreground(lipgloss.Color("113")), // Green
+			"sql":        lipgloss.NewStyle().Foreground(lipgloss.Color("75")),  // Blue
+			"docker":     lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
+			"git":        lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			"config":     lipgloss.NewStyle().Foreground(lipgloss.Color("243")), // Gray
+			"lock":       lipgloss.NewStyle().Foreground(lipgloss.Color("243")), // Gray
+			"test":       lipgloss.NewStyle().Foreground(lipgloss.Color("113")), // Green
+			"proto":      lipgloss.NewStyle().Foreground(lipgloss.Color("75")),  // Blue
+			"graphql":    lipgloss.NewStyle().Foreground(lipgloss.Color("200")), // Magenta
+			"vue":        lipgloss.NewStyle().Foreground(lipgloss.Color("113")), // Green
+			"svelte":     lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			"kotlin":     lipgloss.NewStyle().Foreground(lipgloss.Color("99")),  // Purple
+			"swift":      lipgloss.NewStyle().Foreground(lipgloss.Color("208")), // Orange
+			"php":        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),  // Purple
+			"elixir":     lipgloss.NewStyle().Foreground(lipgloss.Color("99")),  // Purple
+			"erlang":     lipgloss.NewStyle().Foreground(lipgloss.Color("161")), // Magenta
+			"haskell":    lipgloss.NewStyle().Foreground(lipgloss.Color("99")),  // Purple
+			"lua":        lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
+			"vim":        lipgloss.NewStyle().Foreground(lipgloss.Color("113")), // Green
+			"default":    lipgloss.NewStyle().Foreground(lipgloss.Color("246")), // Default gray
 		},
 	}
 }
@@ -227,52 +266,194 @@ func (m Model) emitFileSelected() tea.Cmd {
 	return nil
 }
 
-// getFileIcon returns an icon based on file extension
-func getFileIcon(path string) string {
+// fileIconInfo contains icon and style type for a file
+type fileIconInfo struct {
+	icon      string
+	styleType string
+}
+
+// getFileIcon returns an icon and style type based on file extension/name
+func getFileIcon(path string) fileIconInfo {
 	ext := strings.ToLower(filepath.Ext(path))
+	base := strings.ToLower(filepath.Base(path))
+
+	// Check for special filenames first
+	switch base {
+	case "dockerfile", "containerfile":
+		return fileIconInfo{"", "docker"}
+	case "makefile", "gnumakefile":
+		return fileIconInfo{"", "config"}
+	case ".gitignore", ".gitattributes", ".gitmodules":
+		return fileIconInfo{"", "git"}
+	case ".env", ".env.local", ".env.example":
+		return fileIconInfo{"", "config"}
+	case "package.json":
+		return fileIconInfo{"", "json"}
+	case "tsconfig.json", "jsconfig.json":
+		return fileIconInfo{"", "ts"}
+	case "cargo.toml", "cargo.lock":
+		return fileIconInfo{"", "rust"}
+	case "go.mod", "go.sum":
+		return fileIconInfo{"󰟓", "go"}
+	case "requirements.txt", "pyproject.toml", "setup.py":
+		return fileIconInfo{"", "py"}
+	case "gemfile", "gemfile.lock":
+		return fileIconInfo{"", "ruby"}
+	case "yarn.lock", "package-lock.json", "pnpm-lock.yaml":
+		return fileIconInfo{"", "lock"}
+	case "license", "license.md", "license.txt":
+		return fileIconInfo{"", "config"}
+	case "readme.md", "readme.txt", "readme":
+		return fileIconInfo{"", "md"}
+	}
+
+	// Check by extension
 	switch ext {
+	// Go
 	case ".go":
-		return "󰟓"
-	case ".js", ".jsx":
-		return ""
-	case ".ts", ".tsx":
-		return ""
-	case ".py":
-		return ""
+		return fileIconInfo{"󰟓", "go"}
+	// JavaScript/TypeScript
+	case ".js", ".mjs", ".cjs":
+		return fileIconInfo{"", "js"}
+	case ".jsx":
+		return fileIconInfo{"", "js"}
+	case ".ts", ".mts", ".cts":
+		return fileIconInfo{"", "ts"}
+	case ".tsx":
+		return fileIconInfo{"", "ts"}
+	// Python
+	case ".py", ".pyw", ".pyi":
+		return fileIconInfo{"", "py"}
+	case ".ipynb":
+		return fileIconInfo{"", "py"}
+	// Rust
 	case ".rs":
-		return ""
-	case ".rb":
-		return ""
+		return fileIconInfo{"", "rust"}
+	// Ruby
+	case ".rb", ".erb":
+		return fileIconInfo{"", "ruby"}
+	case ".rake":
+		return fileIconInfo{"", "ruby"}
+	// Java/JVM
 	case ".java":
-		return ""
+		return fileIconInfo{"", "java"}
+	case ".kt", ".kts":
+		return fileIconInfo{"", "kotlin"}
+	case ".scala":
+		return fileIconInfo{"", "java"}
+	case ".groovy":
+		return fileIconInfo{"", "java"}
+	// C/C++
 	case ".c", ".h":
-		return ""
-	case ".cpp", ".hpp", ".cc":
-		return ""
-	case ".json":
-		return ""
+		return fileIconInfo{"", "c"}
+	case ".cpp", ".hpp", ".cc", ".cxx", ".hxx":
+		return fileIconInfo{"", "cpp"}
+	// C#/F#
+	case ".cs":
+		return fileIconInfo{"󰌛", "cpp"}
+	case ".fs", ".fsx":
+		return fileIconInfo{"", "cpp"}
+	// Swift/Objective-C
+	case ".swift":
+		return fileIconInfo{"", "swift"}
+	case ".m", ".mm":
+		return fileIconInfo{"", "c"}
+	// PHP
+	case ".php":
+		return fileIconInfo{"", "php"}
+	// Data formats
+	case ".json", ".jsonc":
+		return fileIconInfo{"", "json"}
 	case ".yaml", ".yml":
-		return ""
+		return fileIconInfo{"", "yaml"}
 	case ".toml":
-		return ""
-	case ".md":
-		return ""
-	case ".html":
-		return ""
-	case ".css", ".scss", ".sass":
-		return ""
-	case ".sh", ".bash", ".zsh":
-		return ""
+		return fileIconInfo{"", "toml"}
+	case ".xml", ".plist":
+		return fileIconInfo{"󰗀", "html"}
+	case ".csv":
+		return fileIconInfo{"", "config"}
+	// Markup/Docs
+	case ".md", ".markdown", ".mdx":
+		return fileIconInfo{"", "md"}
+	case ".rst":
+		return fileIconInfo{"", "md"}
+	case ".txt":
+		return fileIconInfo{"", "default"}
+	case ".pdf":
+		return fileIconInfo{"", "default"}
+	// Web
+	case ".html", ".htm":
+		return fileIconInfo{"", "html"}
+	case ".css":
+		return fileIconInfo{"", "css"}
+	case ".scss", ".sass":
+		return fileIconInfo{"", "css"}
+	case ".less":
+		return fileIconInfo{"", "css"}
+	case ".vue":
+		return fileIconInfo{"", "vue"}
+	case ".svelte":
+		return fileIconInfo{"", "svelte"}
+	// Shell
+	case ".sh", ".bash", ".zsh", ".fish":
+		return fileIconInfo{"", "shell"}
+	case ".ps1", ".psm1":
+		return fileIconInfo{"", "shell"}
+	// Database
 	case ".sql":
-		return ""
-	case ".docker", "dockerfile":
-		return ""
-	case ".git", ".gitignore":
-		return ""
-	case ".mod", ".sum":
-		return "󰟓"
+		return fileIconInfo{"", "sql"}
+	case ".prisma":
+		return fileIconInfo{"", "sql"}
+	// GraphQL/Proto
+	case ".graphql", ".gql":
+		return fileIconInfo{"", "graphql"}
+	case ".proto":
+		return fileIconInfo{"", "proto"}
+	// Functional languages
+	case ".ex", ".exs":
+		return fileIconInfo{"", "elixir"}
+	case ".erl", ".hrl":
+		return fileIconInfo{"", "erlang"}
+	case ".hs", ".lhs":
+		return fileIconInfo{"", "haskell"}
+	case ".clj", ".cljs", ".cljc":
+		return fileIconInfo{"", "haskell"}
+	case ".ml", ".mli":
+		return fileIconInfo{"", "haskell"}
+	// Lua
+	case ".lua":
+		return fileIconInfo{"", "lua"}
+	// Vim
+	case ".vim":
+		return fileIconInfo{"", "vim"}
+	// Config files
+	case ".conf", ".cfg", ".ini":
+		return fileIconInfo{"", "config"}
+	case ".env":
+		return fileIconInfo{"", "config"}
+	// Docker
+	case ".dockerfile":
+		return fileIconInfo{"", "docker"}
+	// Git
+	case ".gitignore", ".gitattributes":
+		return fileIconInfo{"", "git"}
+	// Images
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg":
+		return fileIconInfo{"", "default"}
+	// Archives
+	case ".zip", ".tar", ".gz", ".rar", ".7z":
+		return fileIconInfo{"", "default"}
+	// Binaries
+	case ".exe", ".dll", ".so", ".dylib":
+		return fileIconInfo{"", "default"}
+	// Tests (by naming convention)
 	default:
-		return ""
+		// Check for test files
+		if strings.Contains(base, "_test.") || strings.Contains(base, ".test.") ||
+			strings.Contains(base, ".spec.") || strings.HasPrefix(base, "test_") {
+			return fileIconInfo{"", "test"}
+		}
+		return fileIconInfo{"", "default"}
 	}
 }
 
@@ -301,7 +482,9 @@ func (m Model) View() string {
 			if m.stagedCollapsed {
 				chevron = "▶"
 			}
-			header := fmt.Sprintf(" %s STAGED CHANGES", chevron)
+			// Staged header with checkmark icon and green accent
+			stagedIcon := lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true).Render("")
+			header := fmt.Sprintf(" %s %s STAGED", chevron, stagedIcon)
 			count := m.countStyle.Render(fmt.Sprintf(" (%d)", len(m.staged)))
 			line = m.headerStyle.Render(header) + count
 
@@ -310,7 +493,9 @@ func (m Model) View() string {
 			if m.unstagedCollapsed {
 				chevron = "▶"
 			}
-			header := fmt.Sprintf(" %s CHANGES", chevron)
+			// Changes header with pencil icon and orange accent
+			changesIcon := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).Render("")
+			header := fmt.Sprintf(" %s %s CHANGES", chevron, changesIcon)
 			count := m.countStyle.Render(fmt.Sprintf(" (%d)", len(m.unstaged)))
 			line = m.headerStyle.Render(header) + count
 
@@ -366,8 +551,12 @@ func (m Model) renderFileLine(file diff.FileEntry) string {
 		indicator = file.WorkStatus.String()
 	}
 
-	// File icon
-	icon := getFileIcon(file.Path)
+	// File icon with color
+	iconInfo := getFileIcon(file.Path)
+	iconStyle := m.iconStyles[iconInfo.styleType]
+	if iconStyle.Value() == "" {
+		iconStyle = m.iconStyles["default"]
+	}
 
 	// Just show filename, not full path
 	filename := filepath.Base(file.Path)
@@ -380,7 +569,7 @@ func (m Model) renderFileLine(file diff.FileEntry) string {
 
 	// Build line: "    icon filename status"
 	return fmt.Sprintf("    %s %s %s",
-		m.iconStyle.Render(icon),
+		iconStyle.Render(iconInfo.icon),
 		filename,
 		statusStyle.Render(indicator),
 	)

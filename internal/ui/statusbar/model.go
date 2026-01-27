@@ -33,14 +33,33 @@ type Model struct {
 // New creates a new status bar model
 func New(keyMap types.KeyMap) Model {
 	return Model{
-		keyMap:       keyMap,
-		mode:         "NORMAL",
-		spinner:      spinner.New(),
-		barStyle:     lipgloss.NewStyle().Background(lipgloss.Color("236")),
-		modeStyle:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("40")).Background(lipgloss.Color("236")),
-		branchStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Background(lipgloss.Color("236")),
-		keyStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(lipgloss.Color("236")),
-		messageStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Background(lipgloss.Color("236")),
+		keyMap:  keyMap,
+		mode:    "NORMAL",
+		spinner: spinner.New(),
+		// Main bar with subtle gradient effect via background
+		barStyle: lipgloss.NewStyle().
+			Background(lipgloss.Color("235")),
+		// Mode indicator - pill-shaped with bold colors
+		modeStyle: lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("235")).
+			Background(lipgloss.Color("78")).
+			Padding(0, 1),
+		// Branch with git icon styling
+		branchStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("141")).
+			Background(lipgloss.Color("237")).
+			Padding(0, 1),
+		// Key hints - subtle and readable
+		keyStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("245")).
+			Background(lipgloss.Color("235")),
+		// Messages - warning/info color
+		messageStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Background(lipgloss.Color("235")).
+			Bold(true).
+			Padding(0, 1),
 	}
 }
 
@@ -110,24 +129,64 @@ func (m Model) View() string {
 
 	var parts []string
 
-	// Mode indicator
-	parts = append(parts, m.modeStyle.Render(fmt.Sprintf(" %s ", m.mode)))
+	// Mode indicator with icon
+	modeIcon := ""
+	modeColor := lipgloss.Color("78") // Green for NORMAL
+	switch m.mode {
+	case "STAGED":
+		modeIcon = ""
+		modeColor = lipgloss.Color("39") // Blue
+	case "VISUAL":
+		modeIcon = "󰒉"
+		modeColor = lipgloss.Color("141") // Purple
+	case "INSERT":
+		modeIcon = ""
+		modeColor = lipgloss.Color("214") // Orange
+	default:
+		modeIcon = ""
+	}
+	modeStyleDynamic := m.modeStyle.Background(modeColor)
+	parts = append(parts, modeStyleDynamic.Render(fmt.Sprintf("%s %s", modeIcon, m.mode)))
 
-	// Branch
+	// Separator
+	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render(" | ")
+
+	// Branch with git icon
 	if m.branch != "" {
-		parts = append(parts, m.branchStyle.Render(fmt.Sprintf(" \ue0a0 %s ", m.branch)))
+		branchIcon := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true).Render("")
+		parts = append(parts, sep+m.branchStyle.Render(fmt.Sprintf("%s %s", branchIcon, m.branch)))
 	}
 
-	// File counts
-	countStr := fmt.Sprintf(" %d files", m.fileCount)
+	// File count badges
+	filesBadge := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Background(lipgloss.Color("238")).
+		Padding(0, 1).
+		Render(fmt.Sprintf(" %d", m.fileCount))
+	parts = append(parts, sep+filesBadge)
+
+	// Staged count badge (green if any staged)
 	if m.stagedCount > 0 {
-		countStr = fmt.Sprintf(" %d/%d staged", m.stagedCount, m.fileCount)
+		stagedBadge := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("235")).
+			Background(lipgloss.Color("78")).
+			Bold(true).
+			Padding(0, 1).
+			Render(fmt.Sprintf(" %d", m.stagedCount))
+		parts = append(parts, " "+stagedBadge)
 	}
-	parts = append(parts, m.keyStyle.Render(countStr))
 
-	// Key hints
-	hints := " | [a]stage [A]unstage [s]el [S]hunk [c]ommit [p]ush [t]oggle | ? help"
-	parts = append(parts, m.keyStyle.Render(hints))
+	// Key hints with styled keys
+	keyBracket := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	keyChar := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	keyDesc := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	hints := sep +
+		keyBracket.Render("[") + keyChar.Render("a") + keyBracket.Render("]") + keyDesc.Render("stage ") +
+		keyBracket.Render("[") + keyChar.Render("c") + keyBracket.Render("]") + keyDesc.Render("commit ") +
+		keyBracket.Render("[") + keyChar.Render("p") + keyBracket.Render("]") + keyDesc.Render("push ") +
+		keyBracket.Render("[") + keyChar.Render("?") + keyBracket.Render("]") + keyDesc.Render("help")
+	parts = append(parts, hints)
 
 	left := strings.Join(parts, "")
 
@@ -136,7 +195,16 @@ func (m Model) View() string {
 	if m.spinner.IsSpinning() {
 		right = " " + m.spinner.View() + " "
 	} else if m.message != "" {
-		right = m.messageStyle.Render(" " + m.message + " ")
+		// Add icon based on message type
+		msgIcon := ""
+		if strings.Contains(strings.ToLower(m.message), "error") {
+			msgIcon = " "
+		} else if strings.Contains(strings.ToLower(m.message), "success") || strings.Contains(strings.ToLower(m.message), "committed") {
+			msgIcon = " "
+		} else if strings.Contains(strings.ToLower(m.message), "warning") {
+			msgIcon = " "
+		}
+		right = m.messageStyle.Render(msgIcon + m.message)
 	}
 
 	// Calculate padding

@@ -1,6 +1,8 @@
 package spinner
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -14,15 +16,25 @@ type Model struct {
 	style    lipgloss.Style
 }
 
+// Custom spinner frames for a more modern look (circular progress)
+var customSpinner = spinner.Spinner{
+	Frames: []string{"", "", "", "", "", ""},
+	FPS:    time.Second / 10,
+}
+
 // New creates a new spinner model
 func New() Model {
 	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	s.Spinner = customSpinner
+	s.Style = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("39")).
+		Bold(true)
 
 	return Model{
 		spinner: s,
-		style:   lipgloss.NewStyle().Foreground(lipgloss.Color("214")),
+		style: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("245")).
+			Italic(true),
 	}
 }
 

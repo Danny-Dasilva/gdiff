@@ -53,15 +53,38 @@ func New(keyMap types.KeyMap) Model {
 	vp.SetContent("")
 
 	return Model{
-		keyMap:        keyMap,
-		viewport:      vp,
-		headerStyle:   lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")),
-		hunkStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("141")),
-		addedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("40")),
-		removedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
-		contextStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("250")),
-		lineNumStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("62")),
+		keyMap:   keyMap,
+		viewport: vp,
+		// File header style - bold cyan with underline effect
+		headerStyle: lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("39")).
+			Background(lipgloss.Color("236")).
+			Padding(0, 1),
+		// Hunk header style - purple/magenta with italic
+		hunkStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("141")).
+			Italic(true).
+			Background(lipgloss.Color("235")),
+		// Added lines - green foreground with subtle green background
+		addedStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("114")).
+			Background(lipgloss.Color("22")),
+		// Removed lines - red foreground with subtle red background
+		removedStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("210")).
+			Background(lipgloss.Color("52")),
+		// Context lines - dimmed
+		contextStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")),
+		// Line numbers - dimmed and right-aligned feel
+		lineNumStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Background(lipgloss.Color("235")),
+		// Selected line highlight
+		selectedStyle: lipgloss.NewStyle().
+			Background(lipgloss.Color("62")).
+			Bold(true),
 	}
 }
 
@@ -304,20 +327,27 @@ func (m *Model) updateViewportContent() {
 }
 
 func (m Model) renderLine(line diff.Line, lineNum int) string {
-	// Line number gutter
+	// Line number gutter with separator
 	var numStr string
+	separator := lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render("|")
+
 	switch line.Type {
 	case diff.LineHunkHeader:
-		return m.hunkStyle.Render(line.Content)
+		// Hunk header with decorative markers
+		hunkMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true).Render("@@")
+		return fmt.Sprintf("         %s %s %s", hunkMarker, m.hunkStyle.Render(line.Content), hunkMarker)
 	case diff.LineAdded:
 		numStr = fmt.Sprintf("%4s %4d", "", line.NewNum)
-		return m.lineNumStyle.Render(numStr) + " " + m.addedStyle.Render("+"+line.Content)
+		addMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true).Render("+")
+		return m.lineNumStyle.Render(numStr) + " " + separator + " " + addMarker + m.addedStyle.Render(line.Content)
 	case diff.LineRemoved:
 		numStr = fmt.Sprintf("%4d %4s", line.OldNum, "")
-		return m.lineNumStyle.Render(numStr) + " " + m.removedStyle.Render("-"+line.Content)
+		removeMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true).Render("-")
+		return m.lineNumStyle.Render(numStr) + " " + separator + " " + removeMarker + m.removedStyle.Render(line.Content)
 	default:
 		numStr = fmt.Sprintf("%4d %4d", line.OldNum, line.NewNum)
-		return m.lineNumStyle.Render(numStr) + " " + m.contextStyle.Render(" "+line.Content)
+		contextMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(" ")
+		return m.lineNumStyle.Render(numStr) + " " + separator + " " + contextMarker + m.contextStyle.Render(line.Content)
 	}
 }
 

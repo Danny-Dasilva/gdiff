@@ -1,6 +1,6 @@
 # VHS Demo for gdiff - Git Diff TUI
-# Full workflow: view diff → navigate → stage → commit
-# Run with: vhs demo.tape
+# Full workflow: view diff -> navigate -> stage -> commit
+# Run with: PATH="/tmp:$PATH" vhs demo.tape
 
 Output demo.gif
 
@@ -11,17 +11,24 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 40ms
 Set PlaybackSpeed 0.5
 
-# Start gdiff
-Type "./gdiff"
+# Setup: run setup-demo.sh first to create /tmp/gdiff-demo
+
+# Start gdiff in the demo directory
+Type "cd /tmp/gdiff-demo && /tmp/gdiff"
 Enter
 Sleep 2s
 
-# === SECTION 1: VS Code-style Interface ===
-# Show the new layout with commit input and staged/unstaged sections
+# === VS Code-style Interface ===
+# The interface shows:
+# - Left pane: File tree with Staged/Unstaged sections
+# - Right pane: Diff view with syntax highlighting
+# - Bottom: Inline commit input
 Sleep 1.5s
 
-# === SECTION 2: File Navigation ===
-# Navigate through the file sections
+# === File Navigation ===
+# Navigate through files with j/k
+Type "j"
+Sleep 400ms
 Type "j"
 Sleep 400ms
 Type "j"
@@ -29,17 +36,17 @@ Sleep 400ms
 Type "j"
 Sleep 400ms
 
-# Jump to bottom
+# Jump to bottom with G
 Type "G"
 Sleep 800ms
 
-# Jump back to top
+# Jump back to top with gg
 Type "gg"
 Sleep 800ms
 
-# === SECTION 3: Diff Viewing ===
-# Switch to diff pane
-Type "	"
+# === Diff Viewing ===
+# Switch to diff pane with Tab
+Tab
 Sleep 1s
 
 # Scroll through the diff
@@ -49,16 +56,18 @@ Type "j"
 Sleep 200ms
 Type "j"
 Sleep 200ms
+Type "j"
+Sleep 200ms
 
-# Half page down
+# Half page down with Ctrl+d
 Ctrl+d
 Sleep 800ms
 
-# Half page up
+# Half page up with Ctrl+u
 Ctrl+u
 Sleep 800ms
 
-# Jump between hunks
+# Jump between hunks with } and {
 Type "}"
 Sleep 700ms
 Type "}"
@@ -66,12 +75,12 @@ Sleep 700ms
 Type "{"
 Sleep 700ms
 
-# === SECTION 4: Staging Files ===
+# === Staging Files ===
 # Go back to file tree
-Type "	"
+Tab
 Sleep 500ms
 
-# Navigate to a file and stage it
+# Navigate to a file and stage it with 'a'
 Type "j"
 Sleep 300ms
 Type "a"
@@ -83,55 +92,53 @@ Sleep 300ms
 Type "a"
 Sleep 1s
 
-# === SECTION 5: Hunk Staging ===
-# Go to diff view
-Type "	"
+# === Hunk Staging ===
+# Go to diff view to stage a specific hunk
+Tab
 Sleep 500ms
 
-# Stage a hunk
+# Stage current hunk with S
 Type "S"
 Sleep 1s
 
-# === SECTION 6: Visual Mode ===
-# Enter visual mode for character selection
+# === Visual Selection ===
+# Enter visual mode for line selection
 Type "v"
 Sleep 600ms
 
-# Select characters
-Type "l"
-Sleep 200ms
-Type "l"
-Sleep 200ms
-Type "l"
-Sleep 200ms
+# Select lines with j/k
+Type "j"
+Sleep 300ms
+Type "j"
+Sleep 300ms
 
-# Stage selection
+# Stage selection with s
 Type "s"
 Sleep 1s
 
-# === SECTION 7: Review Staged ===
-# Toggle to staged view
+# === Review Staged Changes ===
+# Toggle to staged view with t
 Type "t"
 Sleep 1.5s
 
-# Toggle back
+# Toggle back to unstaged view
 Type "t"
 Sleep 1s
 
-# === SECTION 8: Inline Commit ===
-# Press 'i' to focus commit input
+# === Inline Commit ===
+# Press 'i' to focus the commit input
 Type "i"
 Sleep 800ms
 
 # Type commit message
-Type "feat: add new TUI improvements"
+Type "feat: add logging and improve utilities"
 Sleep 800ms
 
-# Submit with Enter
+# Submit with Enter (creates the commit)
 Enter
 Sleep 1.5s
 
-# === SECTION 9: Help ===
+# === Show Help ===
 Type "?"
 Sleep 2s
 Escape

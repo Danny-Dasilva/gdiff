@@ -49,6 +49,8 @@ gdiff /path/to/repo
 
 ### Navigation
 
+![Navigation Demo](demo-navigation.gif)
+
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Move down / up |
@@ -65,6 +67,8 @@ gdiff /path/to/repo
 
 ### Staging
 
+![Staging Demo](demo-staging.gif)
+
 | Key | Action |
 |-----|--------|
 | `a` | Stage file (in file tree) |
@@ -77,6 +81,8 @@ gdiff /path/to/repo
 
 ### Visual Selection
 
+![Character-Level Diff Demo](demo-character-diff.gif)
+
 | Key | Action |
 |-----|--------|
 | `v` | Enter character visual mode |
@@ -86,6 +92,8 @@ gdiff /path/to/repo
 | `Escape` | Exit visual mode |
 
 ### Commit & Push
+
+![Commit Demo](demo-commit.gif)
 
 | Key | Action |
 |-----|--------|
