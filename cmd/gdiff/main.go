@@ -6,8 +6,8 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/danny/gdiff/internal/app"
-	"github.com/danny/gdiff/internal/git"
+	"github.com/Danny-Dasilva/gdiff/internal/app"
+	"github.com/Danny-Dasilva/gdiff/internal/git"
 )
 
 func main() {

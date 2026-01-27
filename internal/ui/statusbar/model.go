@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/danny/gdiff/internal/types"
+	"github.com/Danny-Dasilva/gdiff/internal/types"
+	"github.com/Danny-Dasilva/gdiff/internal/ui/spinner"
 )
 
 // Model represents the status bar component
@@ -18,6 +20,7 @@ type Model struct {
 	stagedCount int
 	keyMap      types.KeyMap
 	showHelp    bool
+	spinner     spinner.Model
 
 	// Styles
 	barStyle     lipgloss.Style
@@ -32,6 +35,7 @@ func New(keyMap types.KeyMap) Model {
 	return Model{
 		keyMap:       keyMap,
 		mode:         "NORMAL",
+		spinner:      spinner.New(),
 		barStyle:     lipgloss.NewStyle().Background(lipgloss.Color("236")),
 		modeStyle:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("40")).Background(lipgloss.Color("236")),
 		branchStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Background(lipgloss.Color("236")),
@@ -76,6 +80,28 @@ func (m *Model) ToggleHelp() {
 	m.showHelp = !m.showHelp
 }
 
+// StartSpinner starts the spinner with a message
+func (m *Model) StartSpinner(message string) tea.Cmd {
+	return m.spinner.Start(message)
+}
+
+// StopSpinner stops the spinner
+func (m *Model) StopSpinner() {
+	m.spinner.Stop()
+}
+
+// IsSpinning returns whether the spinner is active
+func (m *Model) IsSpinning() bool {
+	return m.spinner.IsSpinning()
+}
+
+// Update handles spinner updates
+func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	m.spinner, cmd = m.spinner.Update(msg)
+	return cmd
+}
+
 // View renders the status bar
 func (m Model) View() string {
 	if m.showHelp {
@@ -100,14 +126,16 @@ func (m Model) View() string {
 	parts = append(parts, m.keyStyle.Render(countStr))
 
 	// Key hints
-	hints := " | [a]stage [A]unstage [c]ommit [p]ush | j/k nav | ? help"
+	hints := " | [a]stage [A]unstage [s]el [S]hunk [c]ommit [p]ush [t]oggle | ? help"
 	parts = append(parts, m.keyStyle.Render(hints))
 
 	left := strings.Join(parts, "")
 
-	// Message (right-aligned)
+	// Spinner or message (right-aligned)
 	var right string
-	if m.message != "" {
+	if m.spinner.IsSpinning() {
+		right = " " + m.spinner.View() + " "
+	} else if m.message != "" {
 		right = m.messageStyle.Render(" " + m.message + " ")
 	}
 
@@ -129,10 +157,11 @@ func (m Model) renderHelp() string {
  j/k      up/down               a        stage file             c   commit
  h/l      left/right            A        unstage file           C   amend
  gg/G     top/bottom            s/space  stage selection        p   push
- ^d/^u    half page             u        unstage selection      P   force push
- }/{      next/prev hunk        x        revert (confirm)       q   quit
- [c/]c    next/prev change      v        visual mode            ?   close help
- tab      switch pane           V        visual line
+ ^d/^u    half page             S        stage hunk             P   force push
+ }/{      next/prev hunk        U        unstage hunk           t   toggle staged
+ ]c/[c    next/prev change      u        unstage selection      q   quit
+ tab      switch pane           x        revert (confirm)       ?   close help
+                                v/V      visual mode/line
 `
 	return m.barStyle.Width(m.width).Render(help)
 }

@@ -3,7 +3,7 @@ package git
 import (
 	"context"
 
-	"github.com/danny/gdiff/pkg/diff"
+	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 // GetFileDiff returns the diff for a specific file

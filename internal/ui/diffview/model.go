@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/danny/gdiff/internal/types"
-	"github.com/danny/gdiff/pkg/diff"
+	"github.com/Danny-Dasilva/gdiff/internal/types"
+	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 // Model represents the diff view component
@@ -31,6 +31,11 @@ type Model struct {
 	visualMode  bool
 	selectStart int
 	selectEnd   int
+
+	// Character-level selection (within a line)
+	charMode   bool // True when in character selection mode
+	charStart  int  // Start character position in current line
+	charCursor int  // Current character cursor position
 
 	// Styles
 	headerStyle   lipgloss.Style
@@ -136,6 +141,27 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.VisualMode):
 			m.toggleVisualMode()
 
+		case key.Matches(msg, m.keyMap.Escape):
+			// Exit visual/character mode
+			if m.charMode || m.visualMode {
+				m.charMode = false
+				m.visualMode = false
+				m.charStart = 0
+				m.charCursor = 0
+			}
+
+		case key.Matches(msg, m.keyMap.Right):
+			// In character mode, move character cursor right
+			if m.charMode {
+				m.moveCharCursor(1)
+			}
+
+		case key.Matches(msg, m.keyMap.Left):
+			// In character mode, move character cursor left
+			if m.charMode {
+				m.moveCharCursor(-1)
+			}
+
 		default:
 			m.viewport, cmd = m.viewport.Update(msg)
 		}
@@ -220,6 +246,18 @@ func (m *Model) toggleVisualMode() {
 	if m.visualMode {
 		m.selectStart = m.cursor
 		m.selectEnd = m.cursor
+
+		// Enable character mode if on a changeable line (added/removed)
+		if m.isCurrentLineChangeable() {
+			m.charMode = true
+			m.charStart = 0
+			m.charCursor = 0
+		}
+	} else {
+		// Exiting visual mode also exits character mode
+		m.charMode = false
+		m.charStart = 0
+		m.charCursor = 0
 	}
 }
 
@@ -300,4 +338,125 @@ func (m Model) isLineSelected(lineNum int) bool {
 // View implements tea.Model
 func (m Model) View() string {
 	return m.viewport.View()
+}
+
+// CharSelection represents a character-level selection within a line
+type CharSelection struct {
+	LineIndex int // Index in flattened line list
+	Start     int // Start character position
+	End       int // End character position
+}
+
+// GetCharacterSelection returns the current character selection if in char mode
+func (m Model) GetCharacterSelection() *CharSelection {
+	if !m.charMode {
+		return nil
+	}
+
+	start, end := m.charStart, m.charCursor
+	if start > end {
+		start, end = end, start
+	}
+
+	return &CharSelection{
+		LineIndex: m.cursor,
+		Start:     start,
+		End:       end,
+	}
+}
+
+// getCurrentLineContent returns the content of the line at the current cursor position
+func (m Model) getCurrentLineContent() (string, diff.LineType) {
+	lineNum := 0
+	for _, fd := range m.diffs {
+		if lineNum == m.cursor {
+			return "", diff.LineContext // File header
+		}
+		lineNum++
+
+		for _, hunk := range fd.Hunks {
+			for _, line := range hunk.Lines {
+				if lineNum == m.cursor {
+					return line.Content, line.Type
+				}
+				lineNum++
+			}
+		}
+	}
+	return "", diff.LineContext
+}
+
+// isCurrentLineChangeable returns true if the current line is an added or removed line
+func (m Model) isCurrentLineChangeable() bool {
+	_, lineType := m.getCurrentLineContent()
+	return lineType == diff.LineAdded || lineType == diff.LineRemoved
+}
+
+// moveCharCursor moves the character cursor by delta positions
+func (m *Model) moveCharCursor(delta int) {
+	content, _ := m.getCurrentLineContent()
+	maxPos := len([]rune(content))
+
+	m.charCursor += delta
+	if m.charCursor < 0 {
+		m.charCursor = 0
+	}
+	if m.charCursor > maxPos {
+		m.charCursor = maxPos
+	}
+}
+
+// CharStagingInfo contains all info needed to stage characters
+type CharStagingInfo struct {
+	Hunk          diff.Hunk
+	HunkLineIndex int // Index of line within hunk
+	CharStart     int
+	CharEnd       int
+}
+
+// GetCharStagingInfo returns the info needed to stage the current character selection
+// Returns nil if not in character mode or selection is invalid
+func (m Model) GetCharStagingInfo() *CharStagingInfo {
+	if !m.charMode {
+		return nil
+	}
+
+	// Find the hunk and line index for current cursor position
+	lineNum := 0
+	for _, fd := range m.diffs {
+		lineNum++ // File header
+
+		for _, hunk := range fd.Hunks {
+			hunkStartLine := lineNum
+			for i, line := range hunk.Lines {
+				if lineNum == m.cursor {
+					// Found the line - check if it's a changeable line
+					if line.Type != diff.LineAdded && line.Type != diff.LineRemoved {
+						return nil
+					}
+
+					start, end := m.charStart, m.charCursor
+					if start > end {
+						start, end = end, start
+					}
+
+					return &CharStagingInfo{
+						Hunk:          hunk,
+						HunkLineIndex: i,
+						CharStart:     start,
+						CharEnd:       end,
+					}
+				}
+				lineNum++
+			}
+			_ = hunkStartLine // silence unused warning
+		}
+	}
+
+	return nil
+}
+
+// IsInCharMode returns true if currently in character selection mode
+func (m Model) IsInCharMode() bool {
+	return m.charMode
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/danny/gdiff/internal/types"
-	"github.com/danny/gdiff/pkg/diff"
+	"github.com/Danny-Dasilva/gdiff/internal/types"
+	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 // Model represents the file tree component

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/danny/gdiff/pkg/diff"
+	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 // StatusLoadedMsg is sent when git status is loaded
@@ -21,6 +21,15 @@ type DiffLoadedMsg struct {
 type StageCompleteMsg struct {
 	Path string
 	Err  error
+}
+
+// StageCharactersMsg is a request to stage specific characters within a line
+type StageCharactersMsg struct {
+	Path      string
+	Hunk      diff.Hunk
+	LineIndex int
+	CharStart int
+	CharEnd   int
 }
 
 // UnstageCompleteMsg is sent when an unstaging operation completes

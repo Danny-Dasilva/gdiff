@@ -31,7 +31,12 @@ type KeyMap struct {
 	UnstageFile  key.Binding
 	StageItem    key.Binding
 	UnstageItem  key.Binding
+	StageHunk    key.Binding
+	UnstageHunk  key.Binding
 	RevertItem   key.Binding
+
+	// View toggle
+	ToggleStagedView key.Binding
 
 	// Commit/Push
 	Commit      key.Binding
@@ -45,10 +50,13 @@ type KeyMap struct {
 	SearchPrev key.Binding
 
 	// General
-	Help  key.Binding
-	Quit  key.Binding
-	Enter key.Binding
+	Help   key.Binding
+	Quit   key.Binding
+	Enter  key.Binding
 	Escape key.Binding
+
+	// Editor
+	OpenEditor key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings
@@ -145,6 +153,18 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("x"),
 			key.WithHelp("x", "revert (confirm)"),
 		),
+		StageHunk: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "stage hunk"),
+		),
+		UnstageHunk: key.NewBinding(
+			key.WithKeys("U"),
+			key.WithHelp("U", "unstage hunk"),
+		),
+		ToggleStagedView: key.NewBinding(
+			key.WithKeys("t"),
+			key.WithHelp("t", "toggle staged view"),
+		),
 
 		// Commit/Push
 		Commit: key.NewBinding(
@@ -194,6 +214,12 @@ func DefaultKeyMap() KeyMap {
 		Escape: key.NewBinding(
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "cancel"),
+		),
+
+		// Editor
+		OpenEditor: key.NewBinding(
+			key.WithKeys("ctrl+e"),
+			key.WithHelp("^e", "open in editor"),
 		),
 	}
 }

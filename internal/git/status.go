@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/danny/gdiff/pkg/diff"
+	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 // GetStatus returns the list of changed files using porcelain v2 format
