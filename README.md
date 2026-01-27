@@ -6,12 +6,16 @@ A powerful Git diff TUI with Vim-style navigation and granular staging control.
 
 ## Features
 
-- **Two-pane layout** - File tree on the left, diff view on the right
+- **VS Code-style interface** - Familiar layout with staged/unstaged sections and inline commit input
+- **Two-pane layout** - File tree with sections on the left, diff view on the right
 - **Vim-style navigation** - j/k, gg/G, Ctrl+d/u, and more
 - **Granular staging** - Stage files, hunks, lines, or even individual characters
 - **Visual selection** - Select exactly what you want to stage
+- **Inline commit** - Type commit message directly in the UI (press `i`)
 - **Commit integration** - Built-in commit dialog with $EDITOR support
 - **Push support** - Push and force-push from within the TUI
+- **Collapsible sections** - Expand/collapse staged and unstaged changes
+- **File icons** - Language-specific icons (requires Nerd Font)
 - **Async operations** - Non-blocking with spinners for long operations
 - **Diff caching** - Fast navigation with intelligent cache invalidation
 
@@ -85,6 +89,7 @@ gdiff /path/to/repo
 
 | Key | Action |
 |-----|--------|
+| `i` | Focus inline commit input (press Enter to commit, Esc to cancel) |
 | `c` | Open commit dialog |
 | `C` | Amend last commit |
 | `Ctrl+e` | Open $EDITOR for commit message |

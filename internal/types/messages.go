@@ -69,6 +69,7 @@ type FocusChangedMsg struct {
 type Pane int
 
 const (
-	PaneFileTree Pane = iota
+	PaneCommitInput Pane = iota
+	PaneFileTree
 	PaneDiffView
 )

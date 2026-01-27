@@ -10,6 +10,7 @@ import (
 	"github.com/Danny-Dasilva/gdiff/internal/git"
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/commit"
+	"github.com/Danny-Dasilva/gdiff/internal/ui/commitinput"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/diffview"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/filetree"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/statusbar"
@@ -19,6 +20,7 @@ import (
 // Model is the root application model
 type Model struct {
 	// Components
+	commitInput commitinput.Model
 	fileTree    filetree.Model
 	diffView    diffview.Model
 	statusBar   statusbar.Model
@@ -47,6 +49,7 @@ func New() Model {
 	keyMap := types.DefaultKeyMap()
 
 	return Model{
+		commitInput: commitinput.New(),
 		fileTree:    filetree.New(keyMap),
 		diffView:    diffview.New(keyMap),
 		statusBar:   statusbar.New(keyMap),
@@ -299,10 +302,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadDiff(m.currentFile, m.showStaged)
 			}
 			return m, nil
+
+		// Focus commit input with 'i' (insert mode)
+		case msg.String() == "i":
+			m.focused = types.PaneCommitInput
+			m.updateLayout()
+			return m, m.commitInput.Focus()
 		}
 
 		// Delegate to focused component
 		switch m.focused {
+		case types.PaneCommitInput:
+			// Handle commit input
+			switch msg.String() {
+			case "enter":
+				// Commit with the message
+				if msg := m.commitInput.Value(); msg != "" {
+					cmds = append(cmds, m.statusBar.StartSpinner("Committing..."))
+					cmds = append(cmds, m.doCommit(msg, false))
+					m.commitInput.Reset()
+					m.focused = types.PaneFileTree
+					m.updateLayout()
+				}
+			case "esc":
+				// Exit commit input
+				m.focused = types.PaneFileTree
+				m.updateLayout()
+			default:
+				var cmd tea.Cmd
+				m.commitInput, cmd = m.commitInput.Update(msg)
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
+
 		case types.PaneFileTree:
 			var cmd tea.Cmd
 			m.fileTree, cmd = m.fileTree.Update(msg)
@@ -408,40 +441,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) switchFocus() {
+	// Cycle: FileTree -> DiffView -> FileTree (skip commit input in Tab cycle)
 	switch m.focused {
+	case types.PaneCommitInput:
+		m.focused = types.PaneFileTree
 	case types.PaneFileTree:
 		m.focused = types.PaneDiffView
-		m.fileTree.SetFocused(false)
-		m.diffView.SetFocused(true)
 	case types.PaneDiffView:
 		m.focused = types.PaneFileTree
-		m.fileTree.SetFocused(true)
-		m.diffView.SetFocused(false)
 	}
+	m.updateLayout()
 }
 
 func (m *Model) updateLayout() {
-	// Reserve space for status bar
+	// Reserve space for status bar and commit input
 	statusHeight := m.statusBar.HelpHeight()
-	contentHeight := m.height - statusHeight - 2 // borders
+	commitInputHeight := m.commitInput.Height()
+	contentHeight := m.height - statusHeight - commitInputHeight - 2 // borders
 
 	// Split width: 30% file tree, 70% diff view
 	fileTreeWidth := m.width * 30 / 100
-	if fileTreeWidth < 20 {
-		fileTreeWidth = 20
-	}
+	fileTreeWidth = max(fileTreeWidth, 20)
 	diffViewWidth := m.width - fileTreeWidth - 3 // border + separator
 
-	m.fileTree.SetSize(fileTreeWidth-2, contentHeight)
-	m.diffView.SetSize(diffViewWidth-2, contentHeight)
+	m.commitInput.SetWidth(fileTreeWidth - 2)
+	m.fileTree.SetSize(fileTreeWidth-2, contentHeight-2)
+	m.diffView.SetSize(diffViewWidth-2, contentHeight+commitInputHeight)
 	m.statusBar.SetWidth(m.width)
 
-	// Set initial focus
-	if m.focused == types.PaneFileTree {
+	// Update focus states
+	m.commitInput.Blur()
+	m.fileTree.SetFocused(false)
+	m.diffView.SetFocused(false)
+
+	switch m.focused {
+	case types.PaneCommitInput:
+		m.commitInput.Focus()
+	case types.PaneFileTree:
 		m.fileTree.SetFocused(true)
-		m.diffView.SetFocused(false)
-	} else {
-		m.fileTree.SetFocused(false)
+	case types.PaneDiffView:
 		m.diffView.SetFocused(true)
 	}
 }
@@ -465,26 +503,39 @@ func (m Model) View() string {
 
 	// Calculate dimensions
 	statusHeight := m.statusBar.HelpHeight()
+	commitInputHeight := m.commitInput.Height()
 	contentHeight := m.height - statusHeight
 
 	fileTreeWidth := m.width * 30 / 100
-	if fileTreeWidth < 20 {
-		fileTreeWidth = 20
-	}
+	fileTreeWidth = max(fileTreeWidth, 20)
 	diffViewWidth := m.width - fileTreeWidth - 1
 
-	// Build file tree pane
-	fileTreeBorder := m.borderStyle
+	// Left pane: commit input + file tree
+	leftPaneHeight := contentHeight - 2
+
+	// Commit input section
+	commitInputView := m.commitInput.View()
+
+	// File tree section (below commit input)
+	fileTreeHeight := leftPaneHeight - commitInputHeight - 1
+	fileTreeBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("238"))
 	if m.focused == types.PaneFileTree {
 		fileTreeBorder = fileTreeBorder.BorderForeground(lipgloss.Color("62"))
 	}
 	fileTreePane := fileTreeBorder.
-		Width(fileTreeWidth - 2).
-		Height(contentHeight - 2).
-		Render(m.titleStyle.Render(" Files ") + "\n" + m.fileTree.View())
+		Width(fileTreeWidth - 4).
+		Height(fileTreeHeight).
+		Render(m.fileTree.View())
 
-	// Build diff view pane
-	diffViewBorder := m.borderStyle
+	// Combine commit input and file tree vertically
+	leftPane := lipgloss.JoinVertical(lipgloss.Left, commitInputView, fileTreePane)
+
+	// Build diff view pane (full height)
+	diffViewBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("238"))
 	if m.focused == types.PaneDiffView {
 		diffViewBorder = diffViewBorder.BorderForeground(lipgloss.Color("62"))
 	}
@@ -498,7 +549,7 @@ func (m Model) View() string {
 		Render(m.titleStyle.Render(diffTitle) + "\n" + m.diffView.View())
 
 	// Combine panes horizontally
-	content := lipgloss.JoinHorizontal(lipgloss.Top, fileTreePane, diffViewPane)
+	content := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, diffViewPane)
 
 	// Add status bar
 	view := lipgloss.JoinVertical(lipgloss.Left, content, m.statusBar.View())
