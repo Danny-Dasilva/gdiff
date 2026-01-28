@@ -273,6 +273,7 @@ type fileIconInfo struct {
 }
 
 // getFileIcon returns an icon and style type based on file extension/name
+// Uses simple Unicode characters that work in any terminal
 func getFileIcon(path string) fileIconInfo {
 	ext := strings.ToLower(filepath.Ext(path))
 	base := strings.ToLower(filepath.Base(path))
@@ -280,180 +281,180 @@ func getFileIcon(path string) fileIconInfo {
 	// Check for special filenames first
 	switch base {
 	case "dockerfile", "containerfile":
-		return fileIconInfo{"", "docker"}
+		return fileIconInfo{"◈", "docker"}
 	case "makefile", "gnumakefile":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	case ".gitignore", ".gitattributes", ".gitmodules":
-		return fileIconInfo{"", "git"}
+		return fileIconInfo{"●", "git"}
 	case ".env", ".env.local", ".env.example":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	case "package.json":
-		return fileIconInfo{"", "json"}
+		return fileIconInfo{"◆", "json"}
 	case "tsconfig.json", "jsconfig.json":
-		return fileIconInfo{"", "ts"}
+		return fileIconInfo{"◆", "ts"}
 	case "cargo.toml", "cargo.lock":
-		return fileIconInfo{"", "rust"}
+		return fileIconInfo{"◆", "rust"}
 	case "go.mod", "go.sum":
-		return fileIconInfo{"󰟓", "go"}
+		return fileIconInfo{"◆", "go"}
 	case "requirements.txt", "pyproject.toml", "setup.py":
-		return fileIconInfo{"", "py"}
+		return fileIconInfo{"◆", "py"}
 	case "gemfile", "gemfile.lock":
-		return fileIconInfo{"", "ruby"}
+		return fileIconInfo{"◆", "ruby"}
 	case "yarn.lock", "package-lock.json", "pnpm-lock.yaml":
-		return fileIconInfo{"", "lock"}
+		return fileIconInfo{"○", "lock"}
 	case "license", "license.md", "license.txt":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	case "readme.md", "readme.txt", "readme":
-		return fileIconInfo{"", "md"}
+		return fileIconInfo{"◆", "md"}
 	}
 
 	// Check by extension
 	switch ext {
 	// Go
 	case ".go":
-		return fileIconInfo{"󰟓", "go"}
+		return fileIconInfo{"◆", "go"}
 	// JavaScript/TypeScript
 	case ".js", ".mjs", ".cjs":
-		return fileIconInfo{"", "js"}
+		return fileIconInfo{"◆", "js"}
 	case ".jsx":
-		return fileIconInfo{"", "js"}
+		return fileIconInfo{"◆", "js"}
 	case ".ts", ".mts", ".cts":
-		return fileIconInfo{"", "ts"}
+		return fileIconInfo{"◆", "ts"}
 	case ".tsx":
-		return fileIconInfo{"", "ts"}
+		return fileIconInfo{"◆", "ts"}
 	// Python
 	case ".py", ".pyw", ".pyi":
-		return fileIconInfo{"", "py"}
+		return fileIconInfo{"◆", "py"}
 	case ".ipynb":
-		return fileIconInfo{"", "py"}
+		return fileIconInfo{"◆", "py"}
 	// Rust
 	case ".rs":
-		return fileIconInfo{"", "rust"}
+		return fileIconInfo{"◆", "rust"}
 	// Ruby
 	case ".rb", ".erb":
-		return fileIconInfo{"", "ruby"}
+		return fileIconInfo{"◆", "ruby"}
 	case ".rake":
-		return fileIconInfo{"", "ruby"}
+		return fileIconInfo{"◆", "ruby"}
 	// Java/JVM
 	case ".java":
-		return fileIconInfo{"", "java"}
+		return fileIconInfo{"◆", "java"}
 	case ".kt", ".kts":
-		return fileIconInfo{"", "kotlin"}
+		return fileIconInfo{"◆", "kotlin"}
 	case ".scala":
-		return fileIconInfo{"", "java"}
+		return fileIconInfo{"◆", "java"}
 	case ".groovy":
-		return fileIconInfo{"", "java"}
+		return fileIconInfo{"◆", "java"}
 	// C/C++
 	case ".c", ".h":
-		return fileIconInfo{"", "c"}
+		return fileIconInfo{"◆", "c"}
 	case ".cpp", ".hpp", ".cc", ".cxx", ".hxx":
-		return fileIconInfo{"", "cpp"}
+		return fileIconInfo{"◆", "cpp"}
 	// C#/F#
 	case ".cs":
-		return fileIconInfo{"󰌛", "cpp"}
+		return fileIconInfo{"◆", "cpp"}
 	case ".fs", ".fsx":
-		return fileIconInfo{"", "cpp"}
+		return fileIconInfo{"◆", "cpp"}
 	// Swift/Objective-C
 	case ".swift":
-		return fileIconInfo{"", "swift"}
+		return fileIconInfo{"◆", "swift"}
 	case ".m", ".mm":
-		return fileIconInfo{"", "c"}
+		return fileIconInfo{"◆", "c"}
 	// PHP
 	case ".php":
-		return fileIconInfo{"", "php"}
+		return fileIconInfo{"◆", "php"}
 	// Data formats
 	case ".json", ".jsonc":
-		return fileIconInfo{"", "json"}
+		return fileIconInfo{"◇", "json"}
 	case ".yaml", ".yml":
-		return fileIconInfo{"", "yaml"}
+		return fileIconInfo{"◇", "yaml"}
 	case ".toml":
-		return fileIconInfo{"", "toml"}
+		return fileIconInfo{"◇", "toml"}
 	case ".xml", ".plist":
-		return fileIconInfo{"󰗀", "html"}
+		return fileIconInfo{"◇", "html"}
 	case ".csv":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	// Markup/Docs
 	case ".md", ".markdown", ".mdx":
-		return fileIconInfo{"", "md"}
+		return fileIconInfo{"◆", "md"}
 	case ".rst":
-		return fileIconInfo{"", "md"}
+		return fileIconInfo{"◆", "md"}
 	case ".txt":
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	case ".pdf":
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	// Web
 	case ".html", ".htm":
-		return fileIconInfo{"", "html"}
+		return fileIconInfo{"◆", "html"}
 	case ".css":
-		return fileIconInfo{"", "css"}
+		return fileIconInfo{"◆", "css"}
 	case ".scss", ".sass":
-		return fileIconInfo{"", "css"}
+		return fileIconInfo{"◆", "css"}
 	case ".less":
-		return fileIconInfo{"", "css"}
+		return fileIconInfo{"◆", "css"}
 	case ".vue":
-		return fileIconInfo{"", "vue"}
+		return fileIconInfo{"◆", "vue"}
 	case ".svelte":
-		return fileIconInfo{"", "svelte"}
+		return fileIconInfo{"◆", "svelte"}
 	// Shell
 	case ".sh", ".bash", ".zsh", ".fish":
-		return fileIconInfo{"", "shell"}
+		return fileIconInfo{"◆", "shell"}
 	case ".ps1", ".psm1":
-		return fileIconInfo{"", "shell"}
+		return fileIconInfo{"◆", "shell"}
 	// Database
 	case ".sql":
-		return fileIconInfo{"", "sql"}
+		return fileIconInfo{"◆", "sql"}
 	case ".prisma":
-		return fileIconInfo{"", "sql"}
+		return fileIconInfo{"◆", "sql"}
 	// GraphQL/Proto
 	case ".graphql", ".gql":
-		return fileIconInfo{"", "graphql"}
+		return fileIconInfo{"◆", "graphql"}
 	case ".proto":
-		return fileIconInfo{"", "proto"}
+		return fileIconInfo{"◆", "proto"}
 	// Functional languages
 	case ".ex", ".exs":
-		return fileIconInfo{"", "elixir"}
+		return fileIconInfo{"◆", "elixir"}
 	case ".erl", ".hrl":
-		return fileIconInfo{"", "erlang"}
+		return fileIconInfo{"◆", "erlang"}
 	case ".hs", ".lhs":
-		return fileIconInfo{"", "haskell"}
+		return fileIconInfo{"◆", "haskell"}
 	case ".clj", ".cljs", ".cljc":
-		return fileIconInfo{"", "haskell"}
+		return fileIconInfo{"◆", "haskell"}
 	case ".ml", ".mli":
-		return fileIconInfo{"", "haskell"}
+		return fileIconInfo{"◆", "haskell"}
 	// Lua
 	case ".lua":
-		return fileIconInfo{"", "lua"}
+		return fileIconInfo{"◆", "lua"}
 	// Vim
 	case ".vim":
-		return fileIconInfo{"", "vim"}
+		return fileIconInfo{"◆", "vim"}
 	// Config files
 	case ".conf", ".cfg", ".ini":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	case ".env":
-		return fileIconInfo{"", "config"}
+		return fileIconInfo{"◇", "config"}
 	// Docker
 	case ".dockerfile":
-		return fileIconInfo{"", "docker"}
+		return fileIconInfo{"◈", "docker"}
 	// Git
 	case ".gitignore", ".gitattributes":
-		return fileIconInfo{"", "git"}
+		return fileIconInfo{"●", "git"}
 	// Images
 	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg":
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	// Archives
 	case ".zip", ".tar", ".gz", ".rar", ".7z":
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	// Binaries
 	case ".exe", ".dll", ".so", ".dylib":
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	// Tests (by naming convention)
 	default:
 		// Check for test files
 		if strings.Contains(base, "_test.") || strings.Contains(base, ".test.") ||
 			strings.Contains(base, ".spec.") || strings.HasPrefix(base, "test_") {
-			return fileIconInfo{"", "test"}
+			return fileIconInfo{"●", "test"}
 		}
-		return fileIconInfo{"", "default"}
+		return fileIconInfo{"○", "default"}
 	}
 }
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -501,31 +502,52 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	// Calculate dimensions
+	// Overlay commit modal if visible (render on top)
+	if m.commitModal.Visible() {
+		return m.commitModal.View()
+	}
+
+	// Catppuccin Mocha colors
+	base := lipgloss.Color("#1e1e2e")
+	surface := lipgloss.Color("#313244")
+	text := lipgloss.Color("#cdd6f4")
+	subtext := lipgloss.Color("#a6adc8")
+	blue := lipgloss.Color("#89b4fa")
+	mauve := lipgloss.Color("#cba6f7")
+
+	// Outer frame dimensions (reserve space for frame border)
+	frameWidth := m.width - 2
+	frameHeight := m.height - 2
+
+	// Status bar height
 	statusHeight := m.statusBar.HelpHeight()
-	commitInputHeight := m.commitInput.Height()
-	contentHeight := m.height - statusHeight
 
-	fileTreeWidth := m.width * 30 / 100
+	// Inner content dimensions (inside frame, minus title bar and status bar)
+	titleBarHeight := 1
+	innerHeight := frameHeight - titleBarHeight - statusHeight - 1
+	innerWidth := frameWidth - 2
+
+	// Panel widths
+	fileTreeWidth := innerWidth * 30 / 100
 	fileTreeWidth = max(fileTreeWidth, 20)
-	diffViewWidth := m.width - fileTreeWidth - 1
-
-	// Left pane: commit input + file tree
-	leftPaneHeight := contentHeight - 2
+	diffViewWidth := innerWidth - fileTreeWidth - 1
 
 	// Commit input section
+	commitInputHeight := m.commitInput.Height()
 	commitInputView := m.commitInput.View()
 
 	// File tree section (below commit input)
-	fileTreeHeight := leftPaneHeight - commitInputHeight - 1
+	fileTreeHeight := innerHeight - commitInputHeight - 3
+	fileTreeBorderColor := surface
+	if m.focused == types.PaneFileTree {
+		fileTreeBorderColor = blue
+	}
 	fileTreeBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("238"))
-	if m.focused == types.PaneFileTree {
-		fileTreeBorder = fileTreeBorder.BorderForeground(lipgloss.Color("62"))
-	}
+		BorderForeground(fileTreeBorderColor)
+
 	fileTreePane := fileTreeBorder.
-		Width(fileTreeWidth - 4).
+		Width(fileTreeWidth - 2).
 		Height(fileTreeHeight).
 		Render(m.fileTree.View())
 
@@ -533,31 +555,69 @@ func (m Model) View() string {
 	leftPane := lipgloss.JoinVertical(lipgloss.Left, commitInputView, fileTreePane)
 
 	// Build diff view pane (full height)
+	diffViewBorderColor := surface
+	if m.focused == types.PaneDiffView {
+		diffViewBorderColor = blue
+	}
 	diffViewBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("238"))
-	if m.focused == types.PaneDiffView {
-		diffViewBorder = diffViewBorder.BorderForeground(lipgloss.Color("62"))
-	}
+		BorderForeground(diffViewBorderColor)
+
 	diffTitle := " Diff "
 	if m.currentFile != "" {
 		diffTitle = " " + m.currentFile + " "
 	}
+	diffTitleStyled := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(text).
+		Render(diffTitle)
+
 	diffViewPane := diffViewBorder.
 		Width(diffViewWidth - 2).
-		Height(contentHeight - 2).
-		Render(m.titleStyle.Render(diffTitle) + "\n" + m.diffView.View())
+		Height(innerHeight).
+		Render(diffTitleStyled + "\n" + m.diffView.View())
 
 	// Combine panes horizontally
 	content := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, diffViewPane)
 
-	// Add status bar
-	view := lipgloss.JoinVertical(lipgloss.Left, content, m.statusBar.View())
+	// Title bar
+	titleText := " gdiff "
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(base).
+		Background(mauve).
+		Padding(0, 1)
 
-	// Overlay commit modal if visible
-	if m.commitModal.Visible() {
-		return m.commitModal.View()
+	subtitleText := " Git Diff TUI "
+	subtitleStyle := lipgloss.NewStyle().
+		Foreground(subtext).
+		Background(surface).
+		Padding(0, 1)
+
+	titleBar := titleStyle.Render(titleText) + subtitleStyle.Render(subtitleText)
+	titleBarPadding := frameWidth - lipgloss.Width(titleBar) - 2
+	if titleBarPadding > 0 {
+		titleBarBg := lipgloss.NewStyle().Background(surface)
+		titleBar = titleBar + titleBarBg.Render(strings.Repeat(" ", titleBarPadding))
 	}
 
-	return view
+	// Status bar (set width to fit inside frame)
+	m.statusBar.SetWidth(frameWidth - 2)
+	statusBar := m.statusBar.View()
+
+	// Combine title bar, content, and status bar
+	innerContent := lipgloss.JoinVertical(lipgloss.Left,
+		titleBar,
+		content,
+		statusBar,
+	)
+
+	// Outer frame with rounded border
+	outerFrame := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(surface).
+		Width(frameWidth).
+		Height(frameHeight)
+
+	return outerFrame.Render(innerContent)
 }

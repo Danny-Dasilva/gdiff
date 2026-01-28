@@ -129,21 +129,21 @@ func (m Model) View() string {
 
 	var parts []string
 
-	// Mode indicator with icon
-	modeIcon := ""
+	// Mode indicator with icon (using simple Unicode)
+	modeIcon := "●"
 	modeColor := lipgloss.Color("78") // Green for NORMAL
 	switch m.mode {
 	case "STAGED":
-		modeIcon = ""
+		modeIcon = "◆"
 		modeColor = lipgloss.Color("39") // Blue
 	case "VISUAL":
-		modeIcon = "󰒉"
+		modeIcon = "▸"
 		modeColor = lipgloss.Color("141") // Purple
 	case "INSERT":
-		modeIcon = ""
+		modeIcon = "○"
 		modeColor = lipgloss.Color("214") // Orange
 	default:
-		modeIcon = ""
+		modeIcon = "●"
 	}
 	modeStyleDynamic := m.modeStyle.Background(modeColor)
 	parts = append(parts, modeStyleDynamic.Render(fmt.Sprintf("%s %s", modeIcon, m.mode)))
@@ -151,18 +151,18 @@ func (m Model) View() string {
 	// Separator
 	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render(" | ")
 
-	// Branch with git icon
+	// Branch with git icon (using simple Unicode)
 	if m.branch != "" {
-		branchIcon := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true).Render("")
+		branchIcon := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true).Render("*")
 		parts = append(parts, sep+m.branchStyle.Render(fmt.Sprintf("%s %s", branchIcon, m.branch)))
 	}
 
-	// File count badges
+	// File count badges (using simple Unicode)
 	filesBadge := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252")).
 		Background(lipgloss.Color("238")).
 		Padding(0, 1).
-		Render(fmt.Sprintf(" %d", m.fileCount))
+		Render(fmt.Sprintf("# %d", m.fileCount))
 	parts = append(parts, sep+filesBadge)
 
 	// Staged count badge (green if any staged)
@@ -172,7 +172,7 @@ func (m Model) View() string {
 			Background(lipgloss.Color("78")).
 			Bold(true).
 			Padding(0, 1).
-			Render(fmt.Sprintf(" %d", m.stagedCount))
+			Render(fmt.Sprintf("+ %d", m.stagedCount))
 		parts = append(parts, " "+stagedBadge)
 	}
 
@@ -195,14 +195,14 @@ func (m Model) View() string {
 	if m.spinner.IsSpinning() {
 		right = " " + m.spinner.View() + " "
 	} else if m.message != "" {
-		// Add icon based on message type
+		// Add icon based on message type (using simple Unicode)
 		msgIcon := ""
 		if strings.Contains(strings.ToLower(m.message), "error") {
-			msgIcon = " "
+			msgIcon = "! "
 		} else if strings.Contains(strings.ToLower(m.message), "success") || strings.Contains(strings.ToLower(m.message), "committed") {
-			msgIcon = " "
+			msgIcon = "* "
 		} else if strings.Contains(strings.ToLower(m.message), "warning") {
-			msgIcon = " "
+			msgIcon = "~ "
 		}
 		right = m.messageStyle.Render(msgIcon + m.message)
 	}
