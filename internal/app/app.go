@@ -14,6 +14,7 @@ import (
 	"github.com/Danny-Dasilva/gdiff/internal/ui/commitinput"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/diffview"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/filetree"
+	"github.com/Danny-Dasilva/gdiff/internal/ui/helpoverlay"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/statusbar"
 	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
@@ -26,6 +27,7 @@ type Model struct {
 	diffView    diffview.Model
 	statusBar   statusbar.Model
 	commitModal commit.Model
+	helpOverlay helpoverlay.Model
 
 	// State
 	files          []diff.FileEntry
@@ -55,6 +57,7 @@ func New() Model {
 		diffView:    diffview.New(keyMap),
 		statusBar:   statusbar.New(keyMap),
 		commitModal: commit.New(keyMap),
+		helpOverlay: helpoverlay.New(),
 		focused:     types.PaneFileTree,
 		keyMap:      keyMap,
 		diffCache:   make(map[string][]diff.FileDiff),
@@ -193,6 +196,24 @@ func (m Model) doPush(force bool) tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	// Handle help overlay first if visible
+	if m.helpOverlay.Visible() {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			m.helpOverlay.SetSize(msg.Width, msg.Height)
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, m.keyMap.Help), key.Matches(msg, m.keyMap.Escape):
+				m.helpOverlay.Hide()
+			case key.Matches(msg, m.keyMap.Quit):
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+	}
+
 	// Handle commit modal first if visible
 	if m.commitModal.Visible() {
 		var cmd tea.Cmd
@@ -219,6 +240,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.updateLayout()
 		m.commitModal.SetSize(msg.Width, msg.Height)
+		m.helpOverlay.SetSize(msg.Width, msg.Height)
 
 	case spinner.TickMsg:
 		// Forward spinner ticks to statusbar
@@ -235,8 +257,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keyMap.Help):
-			m.statusBar.ToggleHelp()
-			m.updateLayout()
+			m.helpOverlay.SetSize(m.width, m.height)
+			m.helpOverlay.Toggle()
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.SwitchPane):
@@ -389,6 +411,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.diffView.SetDiff(msg.Path, msg.Diffs)
 		}
 
+	case types.FocusChangedMsg:
+		switch msg.Pane {
+		case types.PaneDiffView:
+			m.focused = types.PaneDiffView
+			m.fileTree.SetFocused(false)
+			m.diffView.SetFocused(true)
+		case types.PaneFileTree:
+			m.focused = types.PaneFileTree
+			m.fileTree.SetFocused(true)
+			m.diffView.SetFocused(false)
+		}
+		m.statusBar.SetFocusedPane(m.focused)
+
+	case types.SpaceToggleMsg:
+		if msg.Staged {
+			cmds = append(cmds, m.unstageFile(msg.Path))
+		} else {
+			cmds = append(cmds, m.stageFile(msg.Path))
+		}
+
 	case types.FileSelectedMsg:
 		cmds = append(cmds, m.statusBar.StartSpinner("Loading diff..."))
 		cmds = append(cmds, m.loadDiff(msg.Path, msg.Staged))
@@ -483,6 +525,7 @@ func (m *Model) updateLayout() {
 	case types.PaneDiffView:
 		m.diffView.SetFocused(true)
 	}
+	m.statusBar.SetFocusedPane(m.focused)
 }
 
 func (m *Model) updateCounts() {
@@ -502,6 +545,11 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	// Overlay help if visible (render on top)
+	if m.helpOverlay.Visible() {
+		return m.helpOverlay.View()
+	}
+
 	// Overlay commit modal if visible (render on top)
 	if m.commitModal.Visible() {
 		return m.commitModal.View()
@@ -512,7 +560,7 @@ func (m Model) View() string {
 	surface := lipgloss.Color("#313244")
 	text := lipgloss.Color("#cdd6f4")
 	subtext := lipgloss.Color("#a6adc8")
-	blue := lipgloss.Color("#89b4fa")
+	green := lipgloss.Color("#a6e3a1") // Active border - matches lazygit/soft-serve convention
 	mauve := lipgloss.Color("#cba6f7")
 
 	// Outer frame dimensions (reserve space for frame border)
@@ -540,7 +588,7 @@ func (m Model) View() string {
 	fileTreeHeight := innerHeight - commitInputHeight - 3
 	fileTreeBorderColor := surface
 	if m.focused == types.PaneFileTree {
-		fileTreeBorderColor = blue
+		fileTreeBorderColor = green
 	}
 	fileTreeBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -557,7 +605,7 @@ func (m Model) View() string {
 	// Build diff view pane (full height)
 	diffViewBorderColor := surface
 	if m.focused == types.PaneDiffView {
-		diffViewBorderColor = blue
+		diffViewBorderColor = green
 	}
 	diffViewBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

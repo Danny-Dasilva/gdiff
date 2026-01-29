@@ -61,26 +61,24 @@ func New(keyMap types.KeyMap) Model {
 			Foreground(lipgloss.Color("39")).
 			Background(lipgloss.Color("236")).
 			Padding(0, 1),
-		// Hunk header style - purple/magenta with italic
+		// Hunk header style - blue with bold (Catppuccin blue #89b4fa)
 		hunkStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("141")).
-			Italic(true).
-			Background(lipgloss.Color("235")),
-		// Added lines - green foreground with subtle green background
+			Foreground(lipgloss.Color("#89b4fa")).
+			Bold(true),
+		// Added lines - green text #a6e3a1 with subtle green background #1a2f1a
 		addedStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("114")).
-			Background(lipgloss.Color("22")),
-		// Removed lines - red foreground with subtle red background
+			Foreground(lipgloss.Color("#a6e3a1")).
+			Background(lipgloss.Color("#1a2f1a")),
+		// Removed lines - red text #f38ba8 with subtle red background #2f1a1a
 		removedStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("210")).
-			Background(lipgloss.Color("52")),
-		// Context lines - dimmed
+			Foreground(lipgloss.Color("#f38ba8")).
+			Background(lipgloss.Color("#2f1a1a")),
+		// Context lines - dim text (Catppuccin subtext0 #a6adc8)
 		contextStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("250")),
-		// Line numbers - dimmed and right-aligned feel
+			Foreground(lipgloss.Color("#a6adc8")),
+		// Line numbers - dim (Catppuccin surface2 #585b70)
 		lineNumStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Background(lipgloss.Color("235")),
+			Foreground(lipgloss.Color("#585b70")),
 		// Selected line highlight
 		selectedStyle: lipgloss.NewStyle().
 			Background(lipgloss.Color("62")).
@@ -143,6 +141,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keyMap.HalfUp):
 			m.moveCursor(-m.height / 2)
+			m.syncViewport()
+
+		case key.Matches(msg, m.keyMap.FullPageDown):
+			m.moveCursor(m.height)
+			m.syncViewport()
+
+		case key.Matches(msg, m.keyMap.FullPageUp):
+			m.moveCursor(-m.height)
 			m.syncViewport()
 
 		case key.Matches(msg, m.keyMap.Top):
@@ -333,20 +339,20 @@ func (m Model) renderLine(line diff.Line, lineNum int) string {
 
 	switch line.Type {
 	case diff.LineHunkHeader:
-		// Hunk header with decorative markers
-		hunkMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true).Render("@@")
+		// Hunk header with blue bold @@ markers (Catppuccin blue #89b4fa)
+		hunkMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("#89b4fa")).Bold(true).Render("@@")
 		return fmt.Sprintf("         %s %s %s", hunkMarker, m.hunkStyle.Render(line.Content), hunkMarker)
 	case diff.LineAdded:
 		numStr = fmt.Sprintf("%4s %4d", "", line.NewNum)
-		addMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true).Render("+")
+		addMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")).Bold(true).Render("+")
 		return m.lineNumStyle.Render(numStr) + " " + separator + " " + addMarker + m.addedStyle.Render(line.Content)
 	case diff.LineRemoved:
 		numStr = fmt.Sprintf("%4d %4s", line.OldNum, "")
-		removeMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true).Render("-")
+		removeMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8")).Bold(true).Render("-")
 		return m.lineNumStyle.Render(numStr) + " " + separator + " " + removeMarker + m.removedStyle.Render(line.Content)
 	default:
 		numStr = fmt.Sprintf("%4d %4d", line.OldNum, line.NewNum)
-		contextMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(" ")
+		contextMarker := lipgloss.NewStyle().Foreground(lipgloss.Color("#585b70")).Render(" ")
 		return m.lineNumStyle.Render(numStr) + " " + separator + " " + contextMarker + m.contextStyle.Render(line.Content)
 	}
 }

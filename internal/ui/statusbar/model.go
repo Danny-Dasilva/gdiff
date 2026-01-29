@@ -18,8 +18,8 @@ type Model struct {
 	branch      string
 	fileCount   int
 	stagedCount int
+	focusedPane types.Pane
 	keyMap      types.KeyMap
-	showHelp    bool
 	spinner     spinner.Model
 
 	// Styles
@@ -94,9 +94,9 @@ func (m *Model) SetMode(mode string) {
 	m.mode = mode
 }
 
-// ToggleHelp toggles the help display
-func (m *Model) ToggleHelp() {
-	m.showHelp = !m.showHelp
+// SetFocusedPane updates which pane is focused for context-sensitive hints
+func (m *Model) SetFocusedPane(pane types.Pane) {
+	m.focusedPane = pane
 }
 
 // StartSpinner starts the spinner with a message
@@ -123,10 +123,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 // View renders the status bar
 func (m Model) View() string {
-	if m.showHelp {
-		return m.renderHelp()
-	}
-
 	var parts []string
 
 	// Mode indicator with icon (using simple Unicode)
@@ -176,17 +172,29 @@ func (m Model) View() string {
 		parts = append(parts, " "+stagedBadge)
 	}
 
-	// Key hints with styled keys
+	// Context-sensitive key hints
 	keyBracket := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	keyChar := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
 	keyDesc := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 
-	hints := sep +
-		keyBracket.Render("[") + keyChar.Render("a") + keyBracket.Render("]") + keyDesc.Render("stage ") +
-		keyBracket.Render("[") + keyChar.Render("c") + keyBracket.Render("]") + keyDesc.Render("commit ") +
-		keyBracket.Render("[") + keyChar.Render("p") + keyBracket.Render("]") + keyDesc.Render("push ") +
-		keyBracket.Render("[") + keyChar.Render("?") + keyBracket.Render("]") + keyDesc.Render("help")
-	parts = append(parts, hints)
+	renderHint := func(key, desc string) string {
+		return keyBracket.Render("[") + keyChar.Render(key) + keyBracket.Render("]") + keyDesc.Render(desc+" ")
+	}
+
+	var hintStr string
+	switch m.focusedPane {
+	case types.PaneCommitInput:
+		hintStr = renderHint("Enter", "commit") + renderHint("Esc", "cancel")
+	case types.PaneDiffView:
+		if m.mode == "VISUAL" {
+			hintStr = renderHint("h/l", "select") + renderHint("s", "stage") + renderHint("Esc", "cancel")
+		} else {
+			hintStr = renderHint("Space", "stage") + renderHint("S", "hunk") + renderHint("v", "visual") + renderHint("}", "next") + renderHint("Tab", "files") + renderHint("?", "help")
+		}
+	default: // PaneFileTree
+		hintStr = renderHint("Space", "stage") + renderHint("a", "file") + renderHint("d", "discard") + renderHint("Tab", "diff") + renderHint("i", "commit") + renderHint("?", "help")
+	}
+	parts = append(parts, sep+hintStr)
 
 	left := strings.Join(parts, "")
 
@@ -218,26 +226,7 @@ func (m Model) View() string {
 	return m.barStyle.Width(m.width).Render(left + strings.Repeat(" ", padding) + right)
 }
 
-func (m Model) renderHelp() string {
-	help := `
- Navigation                     Staging                         Actions
- ──────────                     ───────                         ───────
- j/k      up/down               a        stage file             c   commit
- h/l      left/right            A        unstage file           C   amend
- gg/G     top/bottom            s/space  stage selection        p   push
- ^d/^u    half page             S        stage hunk             P   force push
- }/{      next/prev hunk        U        unstage hunk           t   toggle staged
- ]c/[c    next/prev change      u        unstage selection      q   quit
- tab      switch pane           x        revert (confirm)       ?   close help
-                                v/V      visual mode/line
-`
-	return m.barStyle.Width(m.width).Render(help)
-}
-
 // HelpHeight returns the height needed for help display
 func (m Model) HelpHeight() int {
-	if m.showHelp {
-		return 12
-	}
 	return 1
 }

@@ -236,8 +236,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.cursor = max(m.cursor-m.height/2, 0)
 			return m, m.emitFileSelected()
 
-		// Toggle collapse on Enter or Space when on header
-		case msg.String() == "enter" || msg.String() == " ":
+		case key.Matches(msg, m.keyMap.FullPageDown):
+			m.cursor = min(m.cursor+m.height, len(m.rows)-1)
+			return m, m.emitFileSelected()
+
+		case key.Matches(msg, m.keyMap.FullPageUp):
+			m.cursor = max(m.cursor-m.height, 0)
+			return m, m.emitFileSelected()
+
+		// Enter: toggle collapse on header, or open file in diff pane
+		case key.Matches(msg, m.keyMap.Enter):
 			if len(m.rows) > 0 && m.cursor < len(m.rows) {
 				row := m.rows[m.cursor]
 				if row.rowType == rowStagedHeader {
@@ -246,6 +254,37 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				} else if row.rowType == rowChangesHeader {
 					m.unstagedCollapsed = !m.unstagedCollapsed
 					m.rebuildRows()
+				} else {
+					// On a file row: emit file selected + request focus change to diff pane
+					return m, tea.Batch(
+						m.emitFileSelected(),
+						func() tea.Msg {
+							return types.FocusChangedMsg{Pane: types.PaneDiffView}
+						},
+					)
+				}
+			}
+
+		// Space: toggle collapse on header, or stage/unstage the selected file
+		case key.Matches(msg, m.keyMap.SpaceToggle):
+			if len(m.rows) > 0 && m.cursor < len(m.rows) {
+				row := m.rows[m.cursor]
+				if row.rowType == rowStagedHeader {
+					m.stagedCollapsed = !m.stagedCollapsed
+					m.rebuildRows()
+				} else if row.rowType == rowChangesHeader {
+					m.unstagedCollapsed = !m.unstagedCollapsed
+					m.rebuildRows()
+				} else if f := m.SelectedFile(); f != nil {
+					// Stage or unstage depending on current state
+					if f.Staged {
+						return m, func() tea.Msg {
+							return types.SpaceToggleMsg{Path: f.Path, Staged: true}
+						}
+					}
+					return m, func() tea.Msg {
+						return types.SpaceToggleMsg{Path: f.Path, Staged: false}
+					}
 				}
 			}
 		}

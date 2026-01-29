@@ -24,7 +24,7 @@ type Model struct {
 // New creates a new commit input model
 func New() Model {
 	ti := textinput.New()
-	ti.Placeholder = "Enter commit message..."
+	ti.Placeholder = "Commit message..."
 	ti.CharLimit = 200
 	ti.Width = 40
 	// Style the placeholder
@@ -120,13 +120,13 @@ func (m Model) View() string {
 	icon := "" // Git commit icon
 	var label string
 	if m.focused {
-		// Highlight when focused
+		// Highlight when focused - green to match active panel convention
 		focusedIcon := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
+			Foreground(lipgloss.Color("#a6e3a1")).
 			Bold(true).
 			Render(icon)
 		focusedLabel := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
+			Foreground(lipgloss.Color("#a6e3a1")).
 			Bold(true).
 			Render(" Commit")
 		label = focusedIcon + focusedLabel
@@ -144,7 +144,7 @@ func (m Model) View() string {
 	containerStyle := m.containerStyle
 	if m.focused {
 		containerStyle = containerStyle.
-			BorderForeground(lipgloss.Color("214")).
+			BorderForeground(lipgloss.Color("#a6e3a1")).
 			BorderStyle(lipgloss.RoundedBorder())
 	}
 

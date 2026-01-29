@@ -65,6 +65,12 @@ type FocusChangedMsg struct {
 	Pane Pane
 }
 
+// SpaceToggleMsg is sent when space is pressed on a file to stage/unstage it
+type SpaceToggleMsg struct {
+	Path   string
+	Staged bool // true if file is currently staged (so should unstage)
+}
+
 // Pane identifies UI panes
 type Pane int
 

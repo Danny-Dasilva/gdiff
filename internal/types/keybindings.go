@@ -11,8 +11,10 @@ type KeyMap struct {
 	Right     key.Binding
 	Top       key.Binding
 	Bottom    key.Binding
-	HalfUp    key.Binding
-	HalfDown  key.Binding
+	HalfUp       key.Binding
+	HalfDown     key.Binding
+	FullPageUp   key.Binding
+	FullPageDown key.Binding
 	NextHunk  key.Binding
 	PrevHunk  key.Binding
 	NextChange key.Binding
@@ -33,6 +35,7 @@ type KeyMap struct {
 	UnstageItem  key.Binding
 	StageHunk    key.Binding
 	UnstageHunk  key.Binding
+	SpaceToggle  key.Binding
 	RevertItem   key.Binding
 
 	// View toggle
@@ -95,6 +98,14 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+d"),
 			key.WithHelp("^d", "half page down"),
 		),
+		FullPageUp: key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("^b", "page up"),
+		),
+		FullPageDown: key.NewBinding(
+			key.WithKeys("ctrl+f"),
+			key.WithHelp("^f", "page down"),
+		),
 		NextHunk: key.NewBinding(
 			key.WithKeys("}"),
 			key.WithHelp("}", "next hunk"),
@@ -142,16 +153,20 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("A", "unstage file"),
 		),
 		StageItem: key.NewBinding(
-			key.WithKeys("s", " "),
-			key.WithHelp("s/space", "stage selection"),
+			key.WithKeys("s"),
+			key.WithHelp("s", "stage selection"),
 		),
 		UnstageItem: key.NewBinding(
 			key.WithKeys("u"),
 			key.WithHelp("u", "unstage selection"),
 		),
+		SpaceToggle: key.NewBinding(
+			key.WithKeys(" "),
+			key.WithHelp("space", "stage/unstage toggle"),
+		),
 		RevertItem: key.NewBinding(
-			key.WithKeys("x"),
-			key.WithHelp("x", "revert (confirm)"),
+			key.WithKeys("d"),
+			key.WithHelp("d", "discard (confirm)"),
 		),
 		StageHunk: key.NewBinding(
 			key.WithKeys("S"),
