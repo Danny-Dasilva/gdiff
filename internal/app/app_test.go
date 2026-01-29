@@ -12,7 +12,7 @@ import (
 
 // TestCancelFuncFieldExists verifies the Model has a cancelDiffLoad field
 func TestCancelFuncFieldExists(t *testing.T) {
-	m := New()
+	m := New(false)
 	// The cancel func should be nil initially
 	if m.cancelDiffLoad != nil {
 		t.Error("cancelDiffLoad should be nil on new model")
@@ -22,7 +22,7 @@ func TestCancelFuncFieldExists(t *testing.T) {
 // TestNewDiffLoadCancelsPrevious verifies that starting a new diff load
 // cancels any pending previous load
 func TestNewDiffLoadCancelsPrevious(t *testing.T) {
-	m := New()
+	m := New(false)
 
 	// Set up a cancel function that we can track
 	var cancelled atomic.Bool
@@ -48,7 +48,7 @@ func TestNewDiffLoadCancelsPrevious(t *testing.T) {
 
 // TestLoadDiffRespectsContext verifies loadDiff respects context cancellation
 func TestLoadDiffRespectsContext(t *testing.T) {
-	m := New()
+	m := New(false)
 
 	// Start a diff load
 	cmd := m.loadDiff("test.go", false)
@@ -67,7 +67,7 @@ func TestLoadDiffRespectsContext(t *testing.T) {
 // TestFileNavigationCancelsPendingLoad verifies that navigating to a different
 // file cancels the pending diff load
 func TestFileNavigationCancelsPendingLoad(t *testing.T) {
-	m := New()
+	m := New(false)
 	m.width = 100
 	m.height = 50
 	m.updateLayout()
@@ -106,7 +106,7 @@ func TestFileNavigationCancelsPendingLoad(t *testing.T) {
 // TestCachedDiffDoesNotCancelPrevious verifies that a cached diff hit
 // does not unnecessarily cancel (since it returns immediately)
 func TestCachedDiffStillCancelsPrevious(t *testing.T) {
-	m := New()
+	m := New(false)
 
 	// Pre-populate cache
 	m.diffCache["cached-file.go"] = nil
@@ -132,7 +132,7 @@ func TestCachedDiffStillCancelsPrevious(t *testing.T) {
 // TestDiffLoadedMsgForStalePathIgnored verifies that if a DiffLoadedMsg
 // arrives for a file that's no longer the current file, it's handled gracefully
 func TestDiffLoadedMsgUpdatesCurrentFile(t *testing.T) {
-	m := New()
+	m := New(false)
 	m.width = 100
 	m.height = 50
 	m.updateLayout()
@@ -150,7 +150,7 @@ func TestDiffLoadedMsgUpdatesCurrentFile(t *testing.T) {
 // TestContextPassedToGetFileDiff verifies that the context is properly
 // passed through to the git command (integration-style test)
 func TestLoadDiffCreatesNewCancelFunc(t *testing.T) {
-	m := New()
+	m := New(false)
 
 	// Initial state
 	if m.cancelDiffLoad != nil {

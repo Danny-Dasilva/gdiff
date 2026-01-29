@@ -26,9 +26,15 @@ func makeKeyMsg(k string) tea.KeyMsg {
 func TestDefaultKeyMap_FullPageScrollBindings(t *testing.T) {
 	km := DefaultKeyMap()
 
-	t.Run("FullPageUp binding exists with ctrl+b", func(t *testing.T) {
-		if !key.Matches(makeKeyMsg("ctrl+b"), km.FullPageUp) {
-			t.Error("FullPageUp should match ctrl+b")
+	t.Run("FullPageUp binding exists with pgup", func(t *testing.T) {
+		if !key.Matches(makeKeyMsg("pgup"), km.FullPageUp) {
+			t.Error("FullPageUp should match pgup")
+		}
+	})
+
+	t.Run("ToggleSidebar binding exists with ctrl+b", func(t *testing.T) {
+		if !key.Matches(makeKeyMsg("ctrl+b"), km.ToggleSidebar) {
+			t.Error("ToggleSidebar should match ctrl+b")
 		}
 	})
 

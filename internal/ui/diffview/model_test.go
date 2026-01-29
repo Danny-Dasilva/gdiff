@@ -21,7 +21,7 @@ func newTestKeyMap() types.KeyMap {
 }
 
 func TestCharacterSelection(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 
 	// Set up a diff with an added line
@@ -108,7 +108,7 @@ func TestCharacterSelection(t *testing.T) {
 }
 
 func TestCharacterSelectionBounds(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 
 	diffs := []diff.FileDiff{
@@ -154,7 +154,7 @@ func TestCharacterSelectionBounds(t *testing.T) {
 }
 
 func TestGetCharacterSelection(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 
 	content := "hello world"
@@ -198,7 +198,7 @@ func TestGetCharacterSelection(t *testing.T) {
 }
 
 func TestCharacterModeOnlyForChangedLines(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 
 	diffs := []diff.FileDiff{

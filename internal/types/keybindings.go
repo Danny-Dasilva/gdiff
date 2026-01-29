@@ -21,7 +21,8 @@ type KeyMap struct {
 	PrevChange key.Binding
 
 	// Pane switching
-	SwitchPane key.Binding
+	SwitchPane    key.Binding
+	ToggleSidebar key.Binding
 
 	// Selection
 	VisualMode   key.Binding
@@ -99,8 +100,8 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("^d", "half page down"),
 		),
 		FullPageUp: key.NewBinding(
-			key.WithKeys("ctrl+b"),
-			key.WithHelp("^b", "page up"),
+			key.WithKeys("pgup"),
+			key.WithHelp("PgUp", "page up"),
 		),
 		FullPageDown: key.NewBinding(
 			key.WithKeys("ctrl+f"),
@@ -127,6 +128,10 @@ func DefaultKeyMap() KeyMap {
 		SwitchPane: key.NewBinding(
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "switch pane"),
+		),
+		ToggleSidebar: key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("^b", "toggle sidebar"),
 		),
 
 		// Selection

@@ -288,6 +288,50 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 		}
+
+	case tea.MouseMsg:
+		switch msg.Button {
+		case tea.MouseButtonWheelDown:
+			if m.cursor < len(m.rows)-1 {
+				m.cursor = min(m.cursor+3, len(m.rows)-1)
+				return m, m.emitFileSelected()
+			}
+		case tea.MouseButtonWheelUp:
+			if m.cursor > 0 {
+				m.cursor = max(m.cursor-3, 0)
+				return m, m.emitFileSelected()
+			}
+		case tea.MouseButtonLeft:
+			if msg.Action == tea.MouseActionPress && len(m.rows) > 0 {
+				// Map click Y to row index using same viewport offset as View()
+				scrollStart := 0
+				if m.cursor >= m.height {
+					scrollStart = m.cursor - m.height + 1
+				}
+				clickedRow := scrollStart + msg.Y
+				if clickedRow >= 0 && clickedRow < len(m.rows) {
+					m.cursor = clickedRow
+					row := m.rows[clickedRow]
+					// Toggle collapse on header click
+					if row.rowType == rowStagedHeader {
+						m.stagedCollapsed = !m.stagedCollapsed
+						m.rebuildRows()
+						return m, nil
+					} else if row.rowType == rowChangesHeader {
+						m.unstagedCollapsed = !m.unstagedCollapsed
+						m.rebuildRows()
+						return m, nil
+					}
+					// File click: select and open in diff pane
+					return m, tea.Batch(
+						m.emitFileSelected(),
+						func() tea.Msg {
+							return types.FocusChangedMsg{Pane: types.PaneDiffView}
+						},
+					)
+				}
+			}
+		}
 	}
 
 	return m, nil

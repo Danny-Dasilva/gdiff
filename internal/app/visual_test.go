@@ -11,7 +11,7 @@ import (
 // TestActiveBorderIsGreen verifies that focused pane uses green border (#a6e3a1)
 // instead of blue, matching lazygit/soft-serve convention
 func TestActiveBorderIsGreen(t *testing.T) {
-	m := New()
+	m := New(false)
 	m.width = 120
 	m.height = 40
 	m.updateLayout()
@@ -25,7 +25,7 @@ func TestActiveBorderIsGreen(t *testing.T) {
 
 // TestStagingFlashMessageStaged verifies "Staged: filename" message appears
 func TestStagingFlashMessageStaged(t *testing.T) {
-	m := New()
+	m := New(false)
 	m.width = 120
 	m.height = 40
 	m.updateLayout()
@@ -44,7 +44,7 @@ func TestStagingFlashMessageStaged(t *testing.T) {
 
 // TestStagingFlashMessageUnstaged verifies "Unstaged: filename" message appears
 func TestStagingFlashMessageUnstaged(t *testing.T) {
-	m := New()
+	m := New(false)
 	m.width = 120
 	m.height = 40
 	m.updateLayout()
@@ -67,7 +67,7 @@ func TestViewRendersWithFocusStates(t *testing.T) {
 
 	for _, pane := range panes {
 		t.Run(fmt.Sprintf("pane_%d", pane), func(t *testing.T) {
-			m := New()
+			m := New(false)
 			m.width = 120
 			m.height = 40
 			m.focused = pane

@@ -10,7 +10,7 @@ import (
 // TestDualLineNumbers verifies that renderLine produces dual line numbers
 // Format: "  42  56 | code here"
 func TestDualLineNumbers(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 	m.SetSize(120, 40)
 
@@ -54,7 +54,7 @@ func TestDualLineNumbers(t *testing.T) {
 
 // TestDiffRenderLineMarkers verifies the +/- markers in rendered lines
 func TestDiffRenderLineMarkers(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 	m.SetSize(120, 40)
 
@@ -77,7 +77,7 @@ func TestDiffRenderLineMarkers(t *testing.T) {
 
 // TestDiffSeparatorPresent verifies the | separator between line numbers and code
 func TestDiffSeparatorPresent(t *testing.T) {
-	m := New(newTestKeyMap())
+	m := New(newTestKeyMap(), false)
 	m.SetFocused(true)
 	m.SetSize(120, 40)
 

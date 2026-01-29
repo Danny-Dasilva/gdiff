@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -11,6 +12,9 @@ import (
 )
 
 func main() {
+	colorblind := flag.Bool("colorblind", false, "use blue/orange colors instead of red/green for colorblind accessibility")
+	flag.Parse()
+
 	// Check if we're in a git repository
 	ctx := context.Background()
 	if !git.IsGitRepo(ctx) {
@@ -20,7 +24,7 @@ func main() {
 
 	// Create and run the application
 	p := tea.NewProgram(
-		app.New(),
+		app.New(*colorblind),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
