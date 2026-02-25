@@ -3,20 +3,33 @@ package diffview
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
 func newTestKeyMap() types.KeyMap {
 	return types.KeyMap{
-		Up: key.NewBinding(key.WithKeys("k")),
-		Down: key.NewBinding(key.WithKeys("j")),
-		Left: key.NewBinding(key.WithKeys("h")),
-		Right: key.NewBinding(key.WithKeys("l")),
+		Up:         key.NewBinding(key.WithKeys("k")),
+		Down:       key.NewBinding(key.WithKeys("j")),
+		Left:       key.NewBinding(key.WithKeys("h")),
+		Right:      key.NewBinding(key.WithKeys("l")),
 		VisualMode: key.NewBinding(key.WithKeys("v")),
-		Escape: key.NewBinding(key.WithKeys("esc")),
+		Escape:     key.NewBinding(key.WithKeys("esc")),
+	}
+}
+
+func keyPress(k string) tea.KeyPressMsg {
+	switch k {
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	default:
+		r := []rune(k)
+		if len(r) == 1 {
+			return tea.KeyPressMsg{Code: r[0], Text: k}
+		}
+		return tea.KeyPressMsg{}
 	}
 }
 
@@ -50,8 +63,7 @@ func TestCharacterSelection(t *testing.T) {
 	m.moveCursor(2)
 
 	t.Run("character mode activates with v", func(t *testing.T) {
-		// Enter visual mode
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+		m, _ = m.Update(keyPress("v"))
 
 		if !m.visualMode {
 			t.Error("expected visual mode to be enabled")
@@ -65,13 +77,13 @@ func TestCharacterSelection(t *testing.T) {
 		initialPos := m.charCursor
 
 		// Move right
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+		m, _ = m.Update(keyPress("l"))
 		if m.charCursor != initialPos+1 {
 			t.Errorf("charCursor should advance, got %d want %d", m.charCursor, initialPos+1)
 		}
 
 		// Move left
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+		m, _ = m.Update(keyPress("h"))
 		if m.charCursor != initialPos {
 			t.Errorf("charCursor should go back, got %d want %d", m.charCursor, initialPos)
 		}
@@ -84,7 +96,7 @@ func TestCharacterSelection(t *testing.T) {
 
 		// Move cursor to position 5
 		for i := 0; i < 5; i++ {
-			m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+			m, _ = m.Update(keyPress("l"))
 		}
 
 		if m.charStart != 0 {
@@ -96,7 +108,7 @@ func TestCharacterSelection(t *testing.T) {
 	})
 
 	t.Run("escape exits character mode", func(t *testing.T) {
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+		m, _ = m.Update(keyPress("esc"))
 
 		if m.charMode {
 			t.Error("character mode should be disabled after escape")
@@ -129,12 +141,11 @@ func TestCharacterSelectionBounds(t *testing.T) {
 
 	// Move to added line and enter visual mode
 	m.moveCursor(1)
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m, _ = m.Update(keyPress("v"))
 
 	t.Run("charCursor cannot go below 0", func(t *testing.T) {
-		// Try to move left past start
 		for i := 0; i < 10; i++ {
-			m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+			m, _ = m.Update(keyPress("h"))
 		}
 		if m.charCursor < 0 {
 			t.Errorf("charCursor should not be negative, got %d", m.charCursor)
@@ -143,9 +154,8 @@ func TestCharacterSelectionBounds(t *testing.T) {
 
 	t.Run("charCursor cannot exceed line length", func(t *testing.T) {
 		lineLen := 5 // "short"
-		// Try to move right past end
 		for i := 0; i < 20; i++ {
-			m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+			m, _ = m.Update(keyPress("l"))
 		}
 		if m.charCursor > lineLen {
 			t.Errorf("charCursor should not exceed line length %d, got %d", lineLen, m.charCursor)
@@ -176,9 +186,9 @@ func TestGetCharacterSelection(t *testing.T) {
 	m.moveCursor(1)
 
 	// Enter visual mode and select characters 0-5
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m, _ = m.Update(keyPress("v"))
 	for i := 0; i < 5; i++ {
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+		m, _ = m.Update(keyPress("l"))
 	}
 
 	sel := m.GetCharacterSelection()
@@ -222,7 +232,7 @@ func TestCharacterModeOnlyForChangedLines(t *testing.T) {
 	m.moveCursor(1)
 
 	// Enter visual mode on context line
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m, _ = m.Update(keyPress("v"))
 
 	if m.charMode {
 		t.Error("character mode should NOT activate on context lines")

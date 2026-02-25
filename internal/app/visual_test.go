@@ -8,73 +8,59 @@ import (
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 )
 
-// TestActiveBorderIsGreen verifies that focused pane uses green border (#a6e3a1)
-// instead of blue, matching lazygit/soft-serve convention
-func TestActiveBorderIsGreen(t *testing.T) {
+func newTestModel() Model {
 	m := New(false)
 	m.width = 120
 	m.height = 40
 	m.updateLayout()
+	return m
+}
 
-	// The View should render without panic
+func TestActiveBorderIsGreen(t *testing.T) {
+	m := newTestModel()
+
 	view := m.View()
-	if view == "" {
+	if view.Content == "" {
 		t.Fatal("View should not be empty")
 	}
 }
 
-// TestStagingFlashMessageStaged verifies "Staged: filename" message appears
 func TestStagingFlashMessageStaged(t *testing.T) {
-	m := New(false)
-	m.width = 120
-	m.height = 40
-	m.updateLayout()
+	m := newTestModel()
 
-	// Simulate stage complete message
-	msg := types.StageCompleteMsg{Path: "main.go", Err: nil}
+	msg := types.StageCompleteMsg{Path: "main.go"}
 	newModel, _ := m.Update(msg)
 	m = newModel.(Model)
 
-	// View should contain staging confirmation
 	view := m.View()
-	if !strings.Contains(view, "Staged") || !strings.Contains(view, "main.go") {
+	if !strings.Contains(view.Content, "Staged") || !strings.Contains(view.Content, "main.go") {
 		t.Error("View should show 'Staged: main.go' flash message after staging")
 	}
 }
 
-// TestStagingFlashMessageUnstaged verifies "Unstaged: filename" message appears
 func TestStagingFlashMessageUnstaged(t *testing.T) {
-	m := New(false)
-	m.width = 120
-	m.height = 40
-	m.updateLayout()
+	m := newTestModel()
 
-	// Simulate unstage complete message
-	msg := types.UnstageCompleteMsg{Path: "main.go", Err: nil}
+	msg := types.UnstageCompleteMsg{Path: "main.go"}
 	newModel, _ := m.Update(msg)
 	m = newModel.(Model)
 
-	// View should contain unstaging confirmation
 	view := m.View()
-	if !strings.Contains(view, "Unstaged") || !strings.Contains(view, "main.go") {
+	if !strings.Contains(view.Content, "Unstaged") || !strings.Contains(view.Content, "main.go") {
 		t.Error("View should show 'Unstaged: main.go' flash message after unstaging")
 	}
 }
 
-// TestViewRendersWithoutPanic ensures View doesn't crash with various focus states
 func TestViewRendersWithFocusStates(t *testing.T) {
 	panes := []types.Pane{types.PaneFileTree, types.PaneDiffView, types.PaneCommitInput}
 
 	for _, pane := range panes {
 		t.Run(fmt.Sprintf("pane_%d", pane), func(t *testing.T) {
-			m := New(false)
-			m.width = 120
-			m.height = 40
+			m := newTestModel()
 			m.focused = pane
-			m.updateLayout()
 
 			view := m.View()
-			if view == "" {
+			if view.Content == "" {
 				t.Fatalf("View should not be empty for pane %v", pane)
 			}
 		})

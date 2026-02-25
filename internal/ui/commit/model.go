@@ -1,16 +1,29 @@
 package commit
 
 import (
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/Danny-Dasilva/gdiff/internal/git"
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 )
+
+// execCmd wraps *exec.Cmd to implement tea.ExecCommand
+type execCmd struct{ *exec.Cmd }
+
+var confirmBinding = key.NewBinding(key.WithKeys("ctrl+d"))
+
+func clamp(v, lo, hi int) int { return max(lo, min(v, hi)) }
+
+func (c *execCmd) SetStdin(r io.Reader)  { c.Cmd.Stdin = r }
+func (c *execCmd) SetStdout(w io.Writer) { c.Cmd.Stdout = w }
+func (c *execCmd) SetStderr(w io.Writer) { c.Cmd.Stderr = w }
 
 // Model represents the commit modal
 type Model struct {
@@ -82,14 +95,7 @@ func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
 
-	// Modal is 70% of terminal width, max 80 chars
-	modalWidth := width * 70 / 100
-	if modalWidth > 80 {
-		modalWidth = 80
-	}
-	if modalWidth < 40 {
-		modalWidth = 40
-	}
+	modalWidth := clamp(width*70/100, 40, 80)
 
 	m.textarea.SetWidth(modalWidth - 4) // Account for borders
 	m.textarea.SetHeight(10)
@@ -97,7 +103,7 @@ func (m *Model) SetSize(width, height int) {
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	return textarea.Blink
+	return nil
 }
 
 // ConfirmMsg is sent when the user confirms the commit
@@ -123,11 +129,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case EditorFinishedMsg:
-		// Editor closed, update textarea with content
 		if msg.Err == nil && msg.Content != "" {
 			m.textarea.SetValue(msg.Content)
 		}
-		// Clean up temp file
 		if m.tempFilePath != "" {
 			os.Remove(m.tempFilePath)
 			m.tempFilePath = ""
@@ -135,18 +139,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.textarea.Focus()
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Escape):
 			m.Hide()
 			return m, func() tea.Msg { return CancelMsg{} }
 
 		case key.Matches(msg, m.keyMap.OpenEditor):
-			// Ctrl+E to open in external editor
 			return m, m.openEditor()
 
-		case msg.Type == tea.KeyCtrlD:
-			// Ctrl+D to confirm
+		case key.Matches(msg, confirmBinding):
 			if m.Message() != "" {
 				m.Hide()
 				return m, func() tea.Msg {
@@ -166,7 +168,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // openEditor creates a temp file and opens the external editor
 func (m *Model) openEditor() tea.Cmd {
-	// Create temp file with current content
 	tmpPath, err := git.CreateTempCommitFile(m.textarea.Value())
 	if err != nil {
 		return func() tea.Msg {
@@ -175,11 +176,9 @@ func (m *Model) openEditor() tea.Cmd {
 	}
 	m.tempFilePath = tmpPath
 
-	// Get editor command
 	editorCmd := git.EditorCmd(tmpPath)
 
-	// Use tea.ExecProcess to run editor and return to TUI
-	return tea.ExecProcess(editorCmd, func(err error) tea.Msg {
+	return tea.Exec(&execCmd{editorCmd}, func(err error) tea.Msg {
 		content := ""
 		if err == nil {
 			content, _ = git.ReadTempCommitFile(tmpPath)
@@ -208,21 +207,11 @@ func (m Model) View() string {
 
 	modal := m.borderStyle.Render(content)
 
-	// Center the modal
 	modalWidth := lipgloss.Width(modal)
 	modalHeight := lipgloss.Height(modal)
+	padLeft := max((m.width-modalWidth)/2, 0)
+	padTop := max((m.height-modalHeight)/2, 0)
 
-	padLeft := (m.width - modalWidth) / 2
-	padTop := (m.height - modalHeight) / 2
-
-	if padLeft < 0 {
-		padLeft = 0
-	}
-	if padTop < 0 {
-		padTop = 0
-	}
-
-	// Build padding
 	var b strings.Builder
 	for i := 0; i < padTop; i++ {
 		b.WriteString("\n")

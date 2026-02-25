@@ -1,22 +1,22 @@
 package types
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
-// KeyMap defines the key bindings for the application
 type KeyMap struct {
 	// Navigation
-	Up        key.Binding
-	Down      key.Binding
-	Left      key.Binding
-	Right     key.Binding
-	Top       key.Binding
-	Bottom    key.Binding
+	Up           key.Binding
+	Down         key.Binding
+	Left         key.Binding
+	Right        key.Binding
+	Top          key.Binding
+	Bottom       key.Binding
 	HalfUp       key.Binding
 	HalfDown     key.Binding
 	FullPageUp   key.Binding
 	FullPageDown key.Binding
-	NextHunk  key.Binding
-	PrevHunk  key.Binding
+
+	NextHunk   key.Binding
+	PrevHunk   key.Binding
 	NextChange key.Binding
 	PrevChange key.Binding
 
@@ -25,19 +25,19 @@ type KeyMap struct {
 	ToggleSidebar key.Binding
 
 	// Selection
-	VisualMode   key.Binding
-	VisualLine   key.Binding
-	SelectHunk   key.Binding
+	VisualMode key.Binding
+	VisualLine key.Binding
+	SelectHunk key.Binding
 
 	// Staging
-	StageFile    key.Binding
-	UnstageFile  key.Binding
-	StageItem    key.Binding
-	UnstageItem  key.Binding
-	StageHunk    key.Binding
-	UnstageHunk  key.Binding
-	SpaceToggle  key.Binding
-	RevertItem   key.Binding
+	StageFile   key.Binding
+	UnstageFile key.Binding
+	StageItem   key.Binding
+	UnstageItem key.Binding
+	StageHunk   key.Binding
+	UnstageHunk key.Binding
+	SpaceToggle key.Binding
+	RevertItem  key.Binding
 
 	// View toggle
 	ToggleStagedView key.Binding
@@ -63,7 +63,6 @@ type KeyMap struct {
 	OpenEditor key.Binding
 }
 
-// DefaultKeyMap returns the default key bindings
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		// Navigation
@@ -148,7 +147,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("a", "select hunk"),
 		),
 
-		// Staging (using plan's keybindings)
+		// Staging
 		StageFile: key.NewBinding(
 			key.WithKeys("a"),
 			key.WithHelp("a", "stage file"),
@@ -166,7 +165,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("u", "unstage selection"),
 		),
 		SpaceToggle: key.NewBinding(
-			key.WithKeys(" "),
+			key.WithKeys("space"),
 			key.WithHelp("space", "stage/unstage toggle"),
 		),
 		RevertItem: key.NewBinding(

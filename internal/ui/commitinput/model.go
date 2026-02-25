@@ -1,11 +1,9 @@
 package commitinput
 
 import (
-	"strings"
-
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Model represents the inline commit message input
@@ -14,11 +12,8 @@ type Model struct {
 	width   int
 	focused bool
 
-	// Styles
 	containerStyle lipgloss.Style
 	labelStyle     lipgloss.Style
-	inputStyle     lipgloss.Style
-	placeholderStyle lipgloss.Style
 }
 
 // New creates a new commit input model
@@ -26,19 +21,22 @@ func New() Model {
 	ti := textinput.New()
 	ti.Placeholder = "Commit message..."
 	ti.CharLimit = 200
-	ti.Width = 40
-	// Style the placeholder
-	ti.PlaceholderStyle = lipgloss.NewStyle().
+	ti.SetWidth(40)
+	ti.Prompt = " "
+
+	placeholderStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Italic(true)
-	// Style the text cursor
-	ti.Cursor.Style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("214"))
-	// Style the prompt
-	ti.PromptStyle = lipgloss.NewStyle().
+	promptStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("78")).
 		Bold(true)
-	ti.Prompt = " "
+
+	s := ti.Styles()
+	s.Focused.Placeholder = placeholderStyle
+	s.Blurred.Placeholder = placeholderStyle
+	s.Focused.Prompt = promptStyle
+	s.Blurred.Prompt = promptStyle
+	ti.SetStyles(s)
 
 	return Model{
 		input: ti,
@@ -49,15 +47,13 @@ func New() Model {
 		labelStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("78")).
 			Bold(true),
-		inputStyle:       lipgloss.NewStyle(),
-		placeholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true),
 	}
 }
 
 // SetWidth updates the width
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.input.Width = width - 6 // Account for padding/borders
+	m.input.SetWidth(width - 6) // Account for padding/borders
 }
 
 // Focus focuses the input
@@ -114,41 +110,23 @@ func (m Model) View() string {
 		return ""
 	}
 
-	var b strings.Builder
-
-	// Commit icon and label with focus indicator
-	icon := "" // Git commit icon
 	var label string
 	if m.focused {
-		// Highlight when focused - green to match active panel convention
-		focusedIcon := lipgloss.NewStyle().
+		focusedStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#a6e3a1")).
-			Bold(true).
-			Render(icon)
-		focusedLabel := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#a6e3a1")).
-			Bold(true).
-			Render(" Commit")
-		label = focusedIcon + focusedLabel
+			Bold(true)
+		label = focusedStyle.Render(" Commit")
 	} else {
-		label = m.labelStyle.Render(icon + " Commit")
+		label = m.labelStyle.Render(" Commit")
 	}
 
-	b.WriteString(label)
-	b.WriteString("\n")
-
-	// Input field
-	inputView := m.input.View()
-
-	// Apply container style with dynamic border color based on focus
 	containerStyle := m.containerStyle
 	if m.focused {
 		containerStyle = containerStyle.
-			BorderForeground(lipgloss.Color("#a6e3a1")).
-			BorderStyle(lipgloss.RoundedBorder())
+			BorderForeground(lipgloss.Color("#a6e3a1"))
 	}
 
-	content := b.String() + inputView
+	content := label + "\n" + m.input.View()
 
 	return containerStyle.Width(m.width - 2).Render(content)
 }

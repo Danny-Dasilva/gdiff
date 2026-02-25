@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
@@ -161,6 +161,25 @@ func (m *Model) rebuildRows() {
 	}
 }
 
+// toggleHeaderCollapse toggles section collapse if the cursor is on a header row.
+// Returns true if a header was toggled, false otherwise.
+func (m *Model) toggleHeaderCollapse() bool {
+	if len(m.rows) == 0 || m.cursor >= len(m.rows) {
+		return false
+	}
+	switch m.rows[m.cursor].rowType {
+	case rowStagedHeader:
+		m.stagedCollapsed = !m.stagedCollapsed
+		m.rebuildRows()
+		return true
+	case rowChangesHeader:
+		m.unstagedCollapsed = !m.unstagedCollapsed
+		m.rebuildRows()
+		return true
+	}
+	return false
+}
+
 // SetSize updates the component dimensions
 func (m *Model) SetSize(width, height int) {
 	m.width = width
@@ -204,7 +223,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Down):
 			if m.cursor < len(m.rows)-1 {
@@ -244,93 +263,72 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.cursor = max(m.cursor-m.height, 0)
 			return m, m.emitFileSelected()
 
-		// Enter: toggle collapse on header, or open file in diff pane
 		case key.Matches(msg, m.keyMap.Enter):
-			if len(m.rows) > 0 && m.cursor < len(m.rows) {
-				row := m.rows[m.cursor]
-				if row.rowType == rowStagedHeader {
-					m.stagedCollapsed = !m.stagedCollapsed
-					m.rebuildRows()
-				} else if row.rowType == rowChangesHeader {
-					m.unstagedCollapsed = !m.unstagedCollapsed
-					m.rebuildRows()
-				} else {
-					// On a file row: emit file selected + request focus change to diff pane
-					return m, tea.Batch(
-						m.emitFileSelected(),
-						func() tea.Msg {
-							return types.FocusChangedMsg{Pane: types.PaneDiffView}
-						},
-					)
-				}
+			if m.toggleHeaderCollapse() {
+				break
 			}
+			return m, tea.Batch(
+				m.emitFileSelected(),
+				func() tea.Msg {
+					return types.FocusChangedMsg{Pane: types.PaneDiffView}
+				},
+			)
 
-		// Space: toggle collapse on header, or stage/unstage the selected file
 		case key.Matches(msg, m.keyMap.SpaceToggle):
-			if len(m.rows) > 0 && m.cursor < len(m.rows) {
-				row := m.rows[m.cursor]
-				if row.rowType == rowStagedHeader {
-					m.stagedCollapsed = !m.stagedCollapsed
-					m.rebuildRows()
-				} else if row.rowType == rowChangesHeader {
-					m.unstagedCollapsed = !m.unstagedCollapsed
-					m.rebuildRows()
-				} else if f := m.SelectedFile(); f != nil {
-					// Stage or unstage depending on current state
-					if f.Staged {
-						return m, func() tea.Msg {
-							return types.SpaceToggleMsg{Path: f.Path, Staged: true}
-						}
-					}
-					return m, func() tea.Msg {
-						return types.SpaceToggleMsg{Path: f.Path, Staged: false}
-					}
+			if m.toggleHeaderCollapse() {
+				break
+			}
+			if f := m.SelectedFile(); f != nil {
+				return m, func() tea.Msg {
+					return types.SpaceToggleMsg{Path: f.Path, Staged: f.Staged}
 				}
 			}
 		}
 
-	case tea.MouseMsg:
+	case tea.MouseWheelMsg:
 		switch msg.Button {
-		case tea.MouseButtonWheelDown:
+		case tea.MouseWheelDown:
 			if m.cursor < len(m.rows)-1 {
 				m.cursor = min(m.cursor+3, len(m.rows)-1)
 				return m, m.emitFileSelected()
 			}
-		case tea.MouseButtonWheelUp:
+		case tea.MouseWheelUp:
 			if m.cursor > 0 {
 				m.cursor = max(m.cursor-3, 0)
 				return m, m.emitFileSelected()
 			}
-		case tea.MouseButtonLeft:
-			if msg.Action == tea.MouseActionPress && len(m.rows) > 0 {
-				// Map click Y to row index using same viewport offset as View()
-				scrollStart := 0
-				if m.cursor >= m.height {
-					scrollStart = m.cursor - m.height + 1
-				}
-				clickedRow := scrollStart + msg.Y
-				if clickedRow >= 0 && clickedRow < len(m.rows) {
-					m.cursor = clickedRow
-					row := m.rows[clickedRow]
-					// Toggle collapse on header click
-					if row.rowType == rowStagedHeader {
-						m.stagedCollapsed = !m.stagedCollapsed
-						m.rebuildRows()
-						return m, nil
-					} else if row.rowType == rowChangesHeader {
-						m.unstagedCollapsed = !m.unstagedCollapsed
-						m.rebuildRows()
-						return m, nil
-					}
-					// File click: select and open in diff pane
-					return m, tea.Batch(
-						m.emitFileSelected(),
-						func() tea.Msg {
-							return types.FocusChangedMsg{Pane: types.PaneDiffView}
-						},
-					)
-				}
-			}
+		}
+
+	case tea.MouseClickMsg:
+		if msg.Button != tea.MouseLeft || len(m.rows) == 0 {
+			break
+		}
+		scrollStart := 0
+		if m.cursor >= m.height {
+			scrollStart = m.cursor - m.height + 1
+		}
+		clickedRow := scrollStart + msg.Mouse().Y
+		if clickedRow < 0 || clickedRow >= len(m.rows) {
+			break
+		}
+		m.cursor = clickedRow
+		row := m.rows[clickedRow]
+		switch row.rowType {
+		case rowStagedHeader:
+			m.stagedCollapsed = !m.stagedCollapsed
+			m.rebuildRows()
+			return m, nil
+		case rowChangesHeader:
+			m.unstagedCollapsed = !m.unstagedCollapsed
+			m.rebuildRows()
+			return m, nil
+		default:
+			return m, tea.Batch(
+				m.emitFileSelected(),
+				func() tea.Msg {
+					return types.FocusChangedMsg{Pane: types.PaneDiffView}
+				},
+			)
 		}
 	}
 
@@ -391,61 +389,31 @@ func getFileIcon(path string) fileIconInfo {
 		return fileIconInfo{"◆", "md"}
 	}
 
-	// Check by extension
 	switch ext {
-	// Go
 	case ".go":
 		return fileIconInfo{"◆", "go"}
-	// JavaScript/TypeScript
-	case ".js", ".mjs", ".cjs":
+	case ".js", ".mjs", ".cjs", ".jsx":
 		return fileIconInfo{"◆", "js"}
-	case ".jsx":
-		return fileIconInfo{"◆", "js"}
-	case ".ts", ".mts", ".cts":
+	case ".ts", ".mts", ".cts", ".tsx":
 		return fileIconInfo{"◆", "ts"}
-	case ".tsx":
-		return fileIconInfo{"◆", "ts"}
-	// Python
-	case ".py", ".pyw", ".pyi":
+	case ".py", ".pyw", ".pyi", ".ipynb":
 		return fileIconInfo{"◆", "py"}
-	case ".ipynb":
-		return fileIconInfo{"◆", "py"}
-	// Rust
 	case ".rs":
 		return fileIconInfo{"◆", "rust"}
-	// Ruby
-	case ".rb", ".erb":
+	case ".rb", ".erb", ".rake":
 		return fileIconInfo{"◆", "ruby"}
-	case ".rake":
-		return fileIconInfo{"◆", "ruby"}
-	// Java/JVM
-	case ".java":
+	case ".java", ".scala", ".groovy":
 		return fileIconInfo{"◆", "java"}
 	case ".kt", ".kts":
 		return fileIconInfo{"◆", "kotlin"}
-	case ".scala":
-		return fileIconInfo{"◆", "java"}
-	case ".groovy":
-		return fileIconInfo{"◆", "java"}
-	// C/C++
-	case ".c", ".h":
+	case ".c", ".h", ".m", ".mm":
 		return fileIconInfo{"◆", "c"}
-	case ".cpp", ".hpp", ".cc", ".cxx", ".hxx":
+	case ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".cs", ".fs", ".fsx":
 		return fileIconInfo{"◆", "cpp"}
-	// C#/F#
-	case ".cs":
-		return fileIconInfo{"◆", "cpp"}
-	case ".fs", ".fsx":
-		return fileIconInfo{"◆", "cpp"}
-	// Swift/Objective-C
 	case ".swift":
 		return fileIconInfo{"◆", "swift"}
-	case ".m", ".mm":
-		return fileIconInfo{"◆", "c"}
-	// PHP
 	case ".php":
 		return fileIconInfo{"◆", "php"}
-	// Data formats
 	case ".json", ".jsonc":
 		return fileIconInfo{"◇", "json"}
 	case ".yaml", ".yml":
@@ -454,83 +422,45 @@ func getFileIcon(path string) fileIconInfo {
 		return fileIconInfo{"◇", "toml"}
 	case ".xml", ".plist":
 		return fileIconInfo{"◇", "html"}
-	case ".csv":
+	case ".csv", ".conf", ".cfg", ".ini", ".env":
 		return fileIconInfo{"◇", "config"}
-	// Markup/Docs
-	case ".md", ".markdown", ".mdx":
+	case ".md", ".markdown", ".mdx", ".rst":
 		return fileIconInfo{"◆", "md"}
-	case ".rst":
-		return fileIconInfo{"◆", "md"}
-	case ".txt":
-		return fileIconInfo{"○", "default"}
-	case ".pdf":
-		return fileIconInfo{"○", "default"}
-	// Web
 	case ".html", ".htm":
 		return fileIconInfo{"◆", "html"}
-	case ".css":
-		return fileIconInfo{"◆", "css"}
-	case ".scss", ".sass":
-		return fileIconInfo{"◆", "css"}
-	case ".less":
+	case ".css", ".scss", ".sass", ".less":
 		return fileIconInfo{"◆", "css"}
 	case ".vue":
 		return fileIconInfo{"◆", "vue"}
 	case ".svelte":
 		return fileIconInfo{"◆", "svelte"}
-	// Shell
-	case ".sh", ".bash", ".zsh", ".fish":
+	case ".sh", ".bash", ".zsh", ".fish", ".ps1", ".psm1":
 		return fileIconInfo{"◆", "shell"}
-	case ".ps1", ".psm1":
-		return fileIconInfo{"◆", "shell"}
-	// Database
-	case ".sql":
+	case ".sql", ".prisma":
 		return fileIconInfo{"◆", "sql"}
-	case ".prisma":
-		return fileIconInfo{"◆", "sql"}
-	// GraphQL/Proto
 	case ".graphql", ".gql":
 		return fileIconInfo{"◆", "graphql"}
 	case ".proto":
 		return fileIconInfo{"◆", "proto"}
-	// Functional languages
 	case ".ex", ".exs":
 		return fileIconInfo{"◆", "elixir"}
 	case ".erl", ".hrl":
 		return fileIconInfo{"◆", "erlang"}
-	case ".hs", ".lhs":
+	case ".hs", ".lhs", ".clj", ".cljs", ".cljc", ".ml", ".mli":
 		return fileIconInfo{"◆", "haskell"}
-	case ".clj", ".cljs", ".cljc":
-		return fileIconInfo{"◆", "haskell"}
-	case ".ml", ".mli":
-		return fileIconInfo{"◆", "haskell"}
-	// Lua
 	case ".lua":
 		return fileIconInfo{"◆", "lua"}
-	// Vim
 	case ".vim":
 		return fileIconInfo{"◆", "vim"}
-	// Config files
-	case ".conf", ".cfg", ".ini":
-		return fileIconInfo{"◇", "config"}
-	case ".env":
-		return fileIconInfo{"◇", "config"}
-	// Docker
 	case ".dockerfile":
 		return fileIconInfo{"◈", "docker"}
-	// Git
 	case ".gitignore", ".gitattributes":
 		return fileIconInfo{"●", "git"}
-	// Images
-	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg":
+	case ".txt", ".pdf",
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg",
+		".zip", ".tar", ".gz", ".rar", ".7z",
+		".exe", ".dll", ".so", ".dylib":
 		return fileIconInfo{"○", "default"}
-	// Archives
-	case ".zip", ".tar", ".gz", ".rar", ".7z":
-		return fileIconInfo{"○", "default"}
-	// Binaries
-	case ".exe", ".dll", ".so", ".dylib":
-		return fileIconInfo{"○", "default"}
-	// Tests (by naming convention)
 	default:
 		// Check for test files
 		if strings.Contains(base, "_test.") || strings.Contains(base, ".test.") ||
@@ -619,15 +549,12 @@ func (m Model) View() string {
 	return b.String()
 }
 
-// renderFileLine renders a single file entry
 func (m Model) renderFileLine(file diff.FileEntry) string {
-	// Get status style and indicator
-	statusStyle := m.statusStyles[file.Status]
-	if statusStyle.Value() == "" {
+	statusStyle, ok := m.statusStyles[file.Status]
+	if !ok {
 		statusStyle = m.normalStyle
 	}
 
-	// Status indicator
 	var indicator string
 	if file.Staged {
 		indicator = file.IndexStatus.String()
@@ -635,23 +562,18 @@ func (m Model) renderFileLine(file diff.FileEntry) string {
 		indicator = file.WorkStatus.String()
 	}
 
-	// File icon with color
 	iconInfo := getFileIcon(file.Path)
-	iconStyle := m.iconStyles[iconInfo.styleType]
-	if iconStyle.Value() == "" {
+	iconStyle, ok := m.iconStyles[iconInfo.styleType]
+	if !ok {
 		iconStyle = m.iconStyles["default"]
 	}
 
-	// Just show filename, not full path
 	filename := filepath.Base(file.Path)
-
-	// Truncate if needed
-	maxLen := m.width - 10 // Account for indent, icon, status
+	maxLen := m.width - 10
 	if len(filename) > maxLen && maxLen > 3 {
 		filename = filename[:maxLen-3] + "..."
 	}
 
-	// Build line: "    icon filename status"
 	return fmt.Sprintf("    %s %s %s",
 		iconStyle.Render(iconInfo.icon),
 		filename,

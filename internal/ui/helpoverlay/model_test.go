@@ -1,9 +1,17 @@
 package helpoverlay
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// stripAnsi removes ANSI escape sequences for test assertions
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func stripAnsi(s string) string {
+	return ansiRegex.ReplaceAllString(s, "")
+}
 
 func TestNewReturnsHiddenModel(t *testing.T) {
 	m := New()
@@ -52,30 +60,26 @@ func TestViewWhenHidden(t *testing.T) {
 	}
 }
 
-func TestViewContainsKeybindingSections(t *testing.T) {
+func visibleView() string {
 	m := New()
 	m.SetSize(120, 40)
 	m.Toggle()
-	view := m.View()
+	return m.View()
+}
 
-	// Check section headers exist
-	sections := []string{"Navigation", "Staging", "View", "Commit", "Push"}
-	for _, section := range sections {
-		if !strings.Contains(view, section) {
+func TestViewContainsKeybindingSections(t *testing.T) {
+	// Strip ANSI since v2 lipgloss wraps each char in underline styles
+	plain := stripAnsi(visibleView())
+	for _, section := range []string{"Navigation", "Staging", "View", "Commit", "Push"} {
+		if !strings.Contains(plain, section) {
 			t.Errorf("View() should contain section header %q", section)
 		}
 	}
 }
 
 func TestViewContainsKeyBindings(t *testing.T) {
-	m := New()
-	m.SetSize(120, 40)
-	m.Toggle()
-	view := m.View()
-
-	// Check some key bindings are present
-	bindings := []string{"j/k", "Space", "quit", "help", "push"}
-	for _, binding := range bindings {
+	view := visibleView()
+	for _, binding := range []string{"j/k", "Space", "quit", "help", "push"} {
 		if !strings.Contains(view, binding) {
 			t.Errorf("View() should contain key binding text %q", binding)
 		}
@@ -83,23 +87,14 @@ func TestViewContainsKeyBindings(t *testing.T) {
 }
 
 func TestViewContainsCloseHint(t *testing.T) {
-	m := New()
-	m.SetSize(120, 40)
-	m.Toggle()
-	view := m.View()
-
+	view := visibleView()
 	if !strings.Contains(view, "?") && !strings.Contains(view, "Esc") {
 		t.Error("View() should contain close hint mentioning ? or Esc")
 	}
 }
 
 func TestViewContainsKeybindingsTitle(t *testing.T) {
-	m := New()
-	m.SetSize(120, 40)
-	m.Toggle()
-	view := m.View()
-
-	if !strings.Contains(view, "Keybindings") {
+	if !strings.Contains(visibleView(), "Keybindings") {
 		t.Error("View() should contain 'Keybindings' title")
 	}
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/Danny-Dasilva/gdiff/internal/git"
 	"github.com/Danny-Dasilva/gdiff/internal/types"
 	"github.com/Danny-Dasilva/gdiff/internal/ui/commit"
@@ -19,9 +19,7 @@ import (
 	"github.com/Danny-Dasilva/gdiff/pkg/diff"
 )
 
-// Model is the root application model
 type Model struct {
-	// Components
 	commitInput commitinput.Model
 	fileTree    filetree.Model
 	diffView    diffview.Model
@@ -29,27 +27,22 @@ type Model struct {
 	commitModal commit.Model
 	helpOverlay helpoverlay.Model
 
-	// State
 	files          []diff.FileEntry
 	currentFile    string
 	focused        types.Pane
 	keyMap         types.KeyMap
-	showStaged     bool                       // Toggle between staged/unstaged view
-	diffCache      map[string][]diff.FileDiff // Cache for diffs
-	cancelDiffLoad context.CancelFunc         // Cancel pending diff load
+	showStaged     bool
+	diffCache      map[string][]diff.FileDiff
+	cancelDiffLoad context.CancelFunc
 
-	// Layout
-	width           int
-	height          int
+	width            int
+	height           int
 	sidebarCollapsed bool
 
-	// Styles
 	borderStyle lipgloss.Style
 	titleStyle  lipgloss.Style
 }
 
-// New creates a new application model.
-// If colorblind is true, uses blue/orange instead of red/green for accessibility.
 func New(colorblind bool) Model {
 	keyMap := types.DefaultKeyMap()
 
@@ -68,7 +61,6 @@ func New(colorblind bool) Model {
 	}
 }
 
-// Init implements tea.Model
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.statusBar.StartSpinner("Loading status..."),
@@ -97,31 +89,36 @@ type branchLoadedMsg struct {
 	branch string
 }
 
+func diffCacheKey(path string, staged bool) string {
+	if staged {
+		return "staged:" + path
+	}
+	return path
+}
+
+func (m *Model) invalidateFileCache(path string) {
+	delete(m.diffCache, path)
+	delete(m.diffCache, "staged:"+path)
+}
+
 func (m *Model) loadDiff(path string, staged bool) tea.Cmd {
-	// Cancel any pending diff load
 	if m.cancelDiffLoad != nil {
 		m.cancelDiffLoad()
 	}
 
-	// Check cache first
-	cacheKey := path
-	if staged {
-		cacheKey = "staged:" + path
-	}
+	cacheKey := diffCacheKey(path, staged)
 	if cached, ok := m.diffCache[cacheKey]; ok {
-		m.cancelDiffLoad = nil // No async operation pending
+		m.cancelDiffLoad = nil
 		return func() tea.Msg {
 			return types.DiffLoadedMsg{Path: path, Diffs: cached, Err: nil}
 		}
 	}
 
-	// Create cancellable context for this load
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelDiffLoad = cancel
 
 	return func() tea.Msg {
 		diffs, err := git.GetFileDiff(ctx, path, staged)
-		// If context was cancelled, return nil to indicate stale result
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -129,7 +126,6 @@ func (m *Model) loadDiff(path string, staged bool) tea.Cmd {
 	}
 }
 
-// Large diff threshold (lines)
 const largeDiffThreshold = 5000
 
 func (m Model) checkLargeDiff(diffs []diff.FileDiff) bool {
@@ -177,7 +173,6 @@ func (m Model) doCommit(message string, amend bool) tea.Cmd {
 		if err != nil {
 			return types.CommitCompleteMsg{Err: err}
 		}
-		// Extract commit hash from output (simplified)
 		return types.CommitCompleteMsg{Hash: out}
 	}
 }
@@ -194,18 +189,16 @@ func (m Model) doPush(force bool) tea.Cmd {
 	}
 }
 
-// Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Handle help overlay first if visible
 	if m.helpOverlay.Visible() {
 		switch msg := msg.(type) {
 		case tea.WindowSizeMsg:
 			m.width = msg.Width
 			m.height = msg.Height
 			m.helpOverlay.SetSize(msg.Width, msg.Height)
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			switch {
 			case key.Matches(msg, m.keyMap.Help), key.Matches(msg, m.keyMap.Escape):
 				m.helpOverlay.Hide()
@@ -216,7 +209,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Handle commit modal first if visible
 	if m.commitModal.Visible() {
 		var cmd tea.Cmd
 		m.commitModal, cmd = m.commitModal.Update(msg)
@@ -224,7 +216,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-		// Check for commit modal messages
 		switch msg := msg.(type) {
 		case commit.ConfirmMsg:
 			cmds = append(cmds, m.statusBar.StartSpinner("Committing..."))
@@ -245,19 +236,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.helpOverlay.SetSize(msg.Width, msg.Height)
 
 	case spinner.TickMsg:
-		// Forward spinner ticks to statusbar
 		cmd := m.statusBar.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 		return m, tea.Batch(cmds...)
 
-	case tea.MouseMsg:
-		// Click to focus panes and forward click to target component
-		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-			// Determine pane boundaries (must match View layout)
-			frameX := 1 // outer border left
-			frameY := 1 // outer border top
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			frameX := 1
+			frameY := 1
 			titleBarHeight := 1
 			innerWidth := m.width - 2
 			fileTreeWidth := innerWidth * 30 / 100
@@ -269,22 +257,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			commitInputHeight := m.commitInput.Height()
 
-			clickX := msg.X - frameX
-			clickY := msg.Y - frameY - titleBarHeight
+			mouse := msg.Mouse()
+			clickX := mouse.X - frameX
+			clickY := mouse.Y - frameY - titleBarHeight
 
 			if clickY >= 0 {
 				if !m.sidebarCollapsed && clickX >= 0 && clickX < fileTreeWidth {
-					// Left pane
 					if clickY < commitInputHeight {
 						m.focused = types.PaneCommitInput
 					} else {
 						m.focused = types.PaneFileTree
-						// Forward click to file tree with Y adjusted for commit input and file tree border
-						localMsg := msg
-						localMsg.Y = clickY - commitInputHeight - 1 // -1 for border top
+						adjustedY := clickY - commitInputHeight - 1
+						clickMsg := tea.MouseClickMsg{X: mouse.X, Y: adjustedY, Button: msg.Button}
 						m.fileTree.SetFocused(true)
 						var cmd tea.Cmd
-						m.fileTree, cmd = m.fileTree.Update(localMsg)
+						m.fileTree, cmd = m.fileTree.Update(clickMsg)
 						if cmd != nil {
 							cmds = append(cmds, cmd)
 						}
@@ -295,49 +282,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateLayout()
 			}
 		}
+		return m, tea.Batch(cmds...)
 
-		// Forward scroll events to pane under mouse cursor (regardless of focus)
-		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
-			innerWidth := m.width - 2
-			fileTreeWidth := innerWidth * 30 / 100
-			if fileTreeWidth < 20 {
-				fileTreeWidth = 20
+	case tea.MouseWheelMsg:
+		innerWidth := m.width - 2
+		fileTreeWidth := innerWidth * 30 / 100
+		if fileTreeWidth < 20 {
+			fileTreeWidth = 20
+		}
+		mouse := msg.Mouse()
+		clickX := mouse.X - 1
+
+		if clickX >= 0 && clickX < fileTreeWidth {
+			fileTreeFocused := m.focused == types.PaneFileTree
+			if !fileTreeFocused {
+				m.fileTree.SetFocused(true)
 			}
-			clickX := msg.X - 1 // account for outer border
-
-			// Temporarily enable the target component to receive the scroll event
-			if clickX >= 0 && clickX < fileTreeWidth {
-				fileTreeFocused := m.focused == types.PaneFileTree
-				if !fileTreeFocused {
-					m.fileTree.SetFocused(true)
-				}
-				var cmd tea.Cmd
-				m.fileTree, cmd = m.fileTree.Update(msg)
-				if cmd != nil {
-					cmds = append(cmds, cmd)
-				}
-				if !fileTreeFocused {
-					m.fileTree.SetFocused(false)
-				}
-			} else if clickX >= fileTreeWidth {
-				diffFocused := m.focused == types.PaneDiffView
-				if !diffFocused {
-					m.diffView.SetFocused(true)
-				}
-				var cmd tea.Cmd
-				m.diffView, cmd = m.diffView.Update(msg)
-				if cmd != nil {
-					cmds = append(cmds, cmd)
-				}
-				if !diffFocused {
-					m.diffView.SetFocused(false)
-				}
+			var cmd tea.Cmd
+			m.fileTree, cmd = m.fileTree.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			if !fileTreeFocused {
+				m.fileTree.SetFocused(false)
+			}
+		} else if clickX >= fileTreeWidth {
+			diffFocused := m.focused == types.PaneDiffView
+			if !diffFocused {
+				m.diffView.SetFocused(true)
+			}
+			var cmd tea.Cmd
+			m.diffView, cmd = m.diffView.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			if !diffFocused {
+				m.diffView.SetFocused(false)
 			}
 		}
 		return m, tea.Batch(cmds...)
 
-	case tea.KeyMsg:
-		// Global key handling
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Quit):
 			return m, tea.Quit
@@ -380,16 +365,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 
 		case key.Matches(msg, m.keyMap.StageItem):
-			// Stage selection - could be file, lines, or characters
 			if m.focused == types.PaneDiffView && m.diffView.IsInCharMode() {
-				// Stage selected characters
 				if info := m.diffView.GetCharStagingInfo(); info != nil {
 					return m, m.stageCharacters(m.currentFile, info.Hunk, info.HunkLineIndex, info.CharStart, info.CharEnd)
 				}
 			}
 
 		case key.Matches(msg, m.keyMap.StageFile):
-			// Stage selected file
 			if m.focused == types.PaneFileTree {
 				if f := m.fileTree.SelectedFile(); f != nil {
 					return m, m.stageFile(f.Path)
@@ -397,7 +379,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keyMap.UnstageFile):
-			// Unstage selected file
 			if m.focused == types.PaneFileTree {
 				if f := m.fileTree.SelectedFile(); f != nil {
 					return m, m.unstageFile(f.Path)
@@ -405,7 +386,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keyMap.ToggleStagedView):
-			// Toggle between staged and unstaged view
 			m.showStaged = !m.showStaged
 			if m.showStaged {
 				m.statusBar.SetMessage("Showing staged changes")
@@ -414,26 +394,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusBar.SetMessage("Showing unstaged changes")
 				m.statusBar.SetMode("NORMAL")
 			}
-			// Reload current file diff with new view
 			if m.currentFile != "" {
 				return m, m.loadDiff(m.currentFile, m.showStaged)
 			}
 			return m, nil
 
-		// Focus commit input with 'i' (insert mode)
 		case msg.String() == "i":
 			m.focused = types.PaneCommitInput
 			m.updateLayout()
 			return m, m.commitInput.Focus()
 		}
 
-		// Delegate to focused component
 		switch m.focused {
 		case types.PaneCommitInput:
-			// Handle commit input
 			switch msg.String() {
 			case "enter":
-				// Commit with the message
 				if msg := m.commitInput.Value(); msg != "" {
 					cmds = append(cmds, m.statusBar.StartSpinner("Committing..."))
 					cmds = append(cmds, m.doCommit(msg, false))
@@ -442,7 +417,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.updateLayout()
 				}
 			case "esc":
-				// Exit commit input
 				m.focused = types.PaneFileTree
 				m.updateLayout()
 			default:
@@ -477,7 +451,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fileTree.SetFiles(msg.Files)
 			m.updateCounts()
 
-			// Load first file's diff
 			if len(msg.Files) > 0 {
 				f := msg.Files[0]
 				cmds = append(cmds, m.statusBar.StartSpinner("Loading diff..."))
@@ -491,14 +464,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetMessage("Error loading diff: " + msg.Err.Error())
 		} else {
 			m.currentFile = msg.Path
-			// Cache the diff
-			cacheKey := msg.Path
-			if m.showStaged {
-				cacheKey = "staged:" + msg.Path
-			}
-			m.diffCache[cacheKey] = msg.Diffs
+			m.diffCache[diffCacheKey(msg.Path, m.showStaged)] = msg.Diffs
 
-			// Warn about large diffs
 			if m.checkLargeDiff(msg.Diffs) {
 				m.statusBar.SetMessage("Warning: Large diff - character highlighting disabled")
 			}
@@ -534,9 +501,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetMessage("Stage error: " + msg.Err.Error())
 		} else {
 			m.statusBar.SetMessage("Staged: " + msg.Path)
-			// Invalidate cache for this file
-			delete(m.diffCache, msg.Path)
-			delete(m.diffCache, "staged:"+msg.Path)
+			m.invalidateFileCache(msg.Path)
 			cmds = append(cmds, m.loadStatus())
 		}
 
@@ -545,9 +510,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetMessage("Unstage error: " + msg.Err.Error())
 		} else {
 			m.statusBar.SetMessage("Unstaged: " + msg.Path)
-			// Invalidate cache for this file
-			delete(m.diffCache, msg.Path)
-			delete(m.diffCache, "staged:"+msg.Path)
+			m.invalidateFileCache(msg.Path)
 			cmds = append(cmds, m.loadStatus())
 		}
 
@@ -557,7 +520,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetMessage("Commit error: " + msg.Err.Error())
 		} else {
 			m.statusBar.SetMessage("Committed successfully")
-			// Clear entire cache after commit
 			m.diffCache = make(map[string][]diff.FileDiff)
 			cmds = append(cmds, m.loadStatus())
 		}
@@ -578,7 +540,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) switchFocus() {
-	// Cycle: FileTree -> DiffView -> FileTree (skip commit input in Tab cycle)
 	switch m.focused {
 	case types.PaneCommitInput:
 		m.focused = types.PaneFileTree
@@ -591,7 +552,6 @@ func (m *Model) switchFocus() {
 }
 
 func (m *Model) updateLayout() {
-	// Must match View() layout math exactly
 	frameWidth := m.width - 2
 	frameHeight := m.height - 2
 
@@ -611,12 +571,10 @@ func (m *Model) updateLayout() {
 	}
 
 	commitInputHeight := m.commitInput.Height()
-	// File tree content height (inside its border)
 	fileTreeContentHeight := panelHeight - commitInputHeight - 2
 	if fileTreeContentHeight < 1 {
 		fileTreeContentHeight = 1
 	}
-	// Diff view content height (inside its border, minus 1 for title line)
 	diffViewContentHeight := panelHeight - 2
 	if diffViewContentHeight < 1 {
 		diffViewContentHeight = 1
@@ -626,10 +584,9 @@ func (m *Model) updateLayout() {
 		m.commitInput.SetWidth(fileTreeWidth - 2)
 		m.fileTree.SetSize(fileTreeWidth-2, fileTreeContentHeight)
 	}
-	m.diffView.SetSize(diffViewWidth-2, diffViewContentHeight-1) // -1 for diff title line
+	m.diffView.SetSize(diffViewWidth-2, diffViewContentHeight-1)
 	m.statusBar.SetWidth(frameWidth - 2)
 
-	// Update focus states
 	m.commitInput.Blur()
 	m.fileTree.SetFocused(false)
 	m.diffView.SetFocused(false)
@@ -656,44 +613,40 @@ func (m *Model) updateCounts() {
 	m.statusBar.SetCounts(total, staged)
 }
 
-// View implements tea.Model
-func (m Model) View() string {
+func (m Model) newView(content string) tea.View {
+	v := tea.NewView(content)
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
+}
+
+func (m Model) View() tea.View {
 	if m.width == 0 || m.height == 0 {
-		return "Loading..."
+		return m.newView("Loading...")
 	}
 
-	// Overlay help if visible (render on top)
 	if m.helpOverlay.Visible() {
-		return m.helpOverlay.View()
+		return m.newView(m.helpOverlay.View())
 	}
-
-	// Overlay commit modal if visible (render on top)
 	if m.commitModal.Visible() {
-		return m.commitModal.View()
+		return m.newView(m.commitModal.View())
 	}
 
-	// Catppuccin Mocha colors
 	base := lipgloss.Color("#1e1e2e")
 	surface := lipgloss.Color("#313244")
 	text := lipgloss.Color("#cdd6f4")
 	subtext := lipgloss.Color("#a6adc8")
-	green := lipgloss.Color("#a6e3a1") // Active border - matches lazygit/soft-serve convention
+	green := lipgloss.Color("#a6e3a1")
 	mauve := lipgloss.Color("#cba6f7")
 
-	// Outer frame dimensions (reserve space for frame border)
 	frameWidth := m.width - 2
 	frameHeight := m.height - 2
 
-	// Status bar height
 	statusHeight := m.statusBar.HelpHeight()
-
-	// Inner content dimensions (inside frame, minus title bar and status bar)
 	titleBarHeight := 1
-	// Available height for the panel row (between title bar and status bar)
 	panelHeight := frameHeight - titleBarHeight - statusHeight
 	innerWidth := frameWidth
 
-	// Panel widths
 	var fileTreeWidth, diffViewWidth int
 	if m.sidebarCollapsed {
 		fileTreeWidth = 0
@@ -704,7 +657,6 @@ func (m Model) View() string {
 		diffViewWidth = innerWidth - fileTreeWidth - 1
 	}
 
-	// Build diff view pane
 	diffViewContentHeight := panelHeight - 2
 	if diffViewContentHeight < 1 {
 		diffViewContentHeight = 1
@@ -735,11 +687,9 @@ func (m Model) View() string {
 	if m.sidebarCollapsed {
 		content = diffViewPane
 	} else {
-		// Commit input section
 		commitInputHeight := m.commitInput.Height()
 		commitInputView := m.commitInput.View()
 
-		// File tree section
 		fileTreeContentHeight := panelHeight - commitInputHeight - 2
 		if fileTreeContentHeight < 1 {
 			fileTreeContentHeight = 1
@@ -761,7 +711,6 @@ func (m Model) View() string {
 		content = lipgloss.JoinHorizontal(lipgloss.Top, leftPane, diffViewPane)
 	}
 
-	// Title bar
 	titleText := " gdiff "
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -782,23 +731,20 @@ func (m Model) View() string {
 		titleBar = titleBar + titleBarBg.Render(strings.Repeat(" ", titleBarPadding))
 	}
 
-	// Status bar (set width to fit inside frame)
 	m.statusBar.SetWidth(frameWidth - 2)
 	statusBar := m.statusBar.View()
 
-	// Combine title bar, content, and status bar
 	innerContent := lipgloss.JoinVertical(lipgloss.Left,
 		titleBar,
 		content,
 		statusBar,
 	)
 
-	// Outer frame with rounded border
 	outerFrame := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(surface).
 		Width(frameWidth).
 		Height(frameHeight)
 
-	return outerFrame.Render(innerContent)
+	return m.newView(outerFrame.Render(innerContent))
 }
