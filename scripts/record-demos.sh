@@ -1,5 +1,6 @@
 #!/bin/bash
 # Record all VHS demo tapes
+# Self-contained pipeline: build -> setup -> record
 # Usage: ./scripts/record-demos.sh
 
 set -e
@@ -9,9 +10,14 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_DIR"
 
+# Build binary
+echo "Building gdiff..."
+go build -o /tmp/gdiff ./cmd/gdiff
+echo "Binary built at /tmp/gdiff"
+echo ""
+
 # Reset demo repo before each recording
 reset_demo() {
-    echo "Resetting demo repository..."
     "$SCRIPT_DIR/setup-demo.sh" > /dev/null 2>&1
 }
 
@@ -20,7 +26,7 @@ record_tape() {
     local tape=$1
     echo "Recording $tape..."
     reset_demo
-    PATH="/tmp:$PATH" vhs "$tape"
+    vhs "$tape"
     echo "Done: ${tape%.tape}.gif"
 }
 

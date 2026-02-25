@@ -13,7 +13,7 @@ Set PlaybackSpeed 0.5
 
 # Setup: run setup-demo.sh first
 
-Type "cd /tmp/gdiff-demo && /tmp/gdiff"
+Type "/tmp/gdiff -C /tmp/gdiff-demo"
 Enter
 Sleep 2s
 
